@@ -33,6 +33,7 @@ model Cause {
   imageUrl       String?     @map("image_url")
   status         CauseStatus @default(DRAFT)
   supporterCount Int         @default(0) @map("supporter_count")
+  updateMessage  String?     @map("update_message")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 

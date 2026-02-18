@@ -176,6 +176,24 @@ export const causeRouter = createTRPCRouter({
       return { slug: cause.slug, id: cause.id };
     }),
 
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const cause = await ctx.db.cause.findUnique({
+        where: { id: input.id, creatorId: ctx.user.id },
+        include: {
+          _count: { select: { supporters: true, comments: true } },
+          images: true,
+        },
+      });
+
+      if (!cause) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Cause not found" });
+      }
+
+      return cause;
+    }),
+
   listMine: protectedProcedure
     .input(
       z
@@ -219,6 +237,7 @@ export const causeRouter = createTRPCRouter({
         status: z
           .enum(["DRAFT", "PUBLISHED", "PENDING_REVIEW", "ARCHIVED"])
           .optional(),
+        updateMessage: z.string().max(500).optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {

@@ -16,6 +16,7 @@ interface CausePageClientProps {
     goal: string | null;
     imageUrl: string | null;
     supporterCount: number;
+    updateMessage: string | null;
     createdAt: string;
     creator: { id: string; name: string | null; avatarUrl: string | null };
     commentCount: number;
@@ -41,6 +42,12 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
           </Link>
         </div>
       </header>
+
+      {cause.updateMessage && (
+        <div className="border-l-4 border-primary bg-primary/5 px-4 py-3 text-sm">
+          <strong>Update from the organizer:</strong> {cause.updateMessage}
+        </div>
+      )}
 
       <LandingPageRenderer
         config={landingConfig}
@@ -75,6 +82,22 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
           <CommentSection causeId={cause.id} />
         </div>
       </section>
+
+      <footer className="border-t px-4 py-6 text-center text-xs text-muted-foreground">
+        <Link
+          href="/"
+          className="transition-colors hover:text-foreground"
+        >
+          Powered by Civilysta
+        </Link>
+        {" · "}
+        <Link
+          href="/privacy"
+          className="transition-colors hover:text-foreground"
+        >
+          Privacy Policy
+        </Link>
+      </footer>
     </div>
   );
 }

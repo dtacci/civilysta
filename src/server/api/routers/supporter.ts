@@ -3,6 +3,7 @@ import crypto from "crypto";
 import {
   createTRPCRouter,
   publicProcedure,
+  protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
@@ -83,5 +84,25 @@ export const supporterRouter = createTRPCRouter({
         select: { supporterCount: true },
       });
       return { count: cause?.supporterCount ?? 0 };
+    }),
+
+  listByCause: protectedProcedure
+    .input(z.object({ causeId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const cause = await ctx.db.cause.findUnique({
+        where: { id: input.causeId },
+      });
+
+      if (!cause || cause.creatorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const supporters = await ctx.db.supporter.findMany({
+        where: { causeId: input.causeId },
+        orderBy: { createdAt: "desc" },
+        select: { email: true, name: true, createdAt: true },
+      });
+
+      return { supporters };
     }),
 });

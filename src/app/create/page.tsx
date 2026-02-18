@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/lib/trpc/client";
@@ -54,6 +54,35 @@ export default function CreateCausePage() {
   const [authEmail, setAuthEmail] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
+  // Restore draft from localStorage after magic link auth
+  useEffect(() => {
+    const saved = localStorage.getItem("civilysta_draft");
+    if (!saved) return;
+
+    const restoreDraft = async () => {
+      try {
+        const draft = JSON.parse(saved);
+        const supabase = createSupabaseBrowserClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user && draft.title && draft.content) {
+          setTitle(draft.title);
+          setDescription(draft.description);
+          setContent(draft.content);
+          setImages(draft.images ?? []);
+          setSelectedImage(draft.selectedImageIndex ?? 0);
+          setPrimaryColor(draft.primaryColor ?? "#3b82f6");
+          setStep(3);
+          localStorage.removeItem("civilysta_draft");
+        }
+      } catch {
+        localStorage.removeItem("civilysta_draft");
+      }
+    };
+
+    restoreDraft();
+  }, []);
+
   const generatePreview = trpc.cause.generatePreview.useMutation({
     onSuccess: (data) => {
       setContent(data.content);
@@ -101,6 +130,19 @@ export default function CreateCausePage() {
 
   const handleMagicLink = async () => {
     if (!authEmail.trim()) return;
+
+    // Save draft so it survives the redirect
+    localStorage.setItem(
+      "civilysta_draft",
+      JSON.stringify({
+        title,
+        description,
+        content,
+        images,
+        selectedImageIndex: selectedImage,
+        primaryColor,
+      }),
+    );
 
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOtp({
@@ -373,6 +415,10 @@ export default function CreateCausePage() {
                       >
                         Send Magic Link
                       </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        Your draft is saved. After clicking the link in your
+                        email, you&apos;ll return here automatically.
+                      </p>
                     </div>
                   )}
                 </CardContent>

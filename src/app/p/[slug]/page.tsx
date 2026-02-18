@@ -59,6 +59,7 @@ export default async function CausePage({ params }: PageProps) {
           goal: cause.goal,
           imageUrl: cause.imageUrl,
           supporterCount: cause.supporterCount,
+          updateMessage: cause.updateMessage,
           createdAt: cause.createdAt.toISOString(),
           creator: cause.creator,
           commentCount: cause._count.comments,
