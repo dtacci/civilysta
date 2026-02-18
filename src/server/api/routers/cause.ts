@@ -10,6 +10,7 @@ import { generateCauseContent } from "~/lib/ai/cause-generator";
 import { generateCauseImages } from "~/lib/ai/image-generator";
 import { checkModeration } from "~/lib/moderation";
 import { TRPCError } from "@trpc/server";
+import { sendEmailBlast } from "~/lib/email";
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -251,6 +252,32 @@ export const causeRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
+      // Auto-blast supporters when updateMessage changes
+      if (
+        input.updateMessage &&
+        input.updateMessage !== cause.updateMessage &&
+        process.env.RESEND_API_KEY
+      ) {
+        const siteUrl =
+          process.env.NEXT_PUBLIC_APP_URL ?? "https://civilysta.com";
+        const causeUrl = `${siteUrl}/p/${cause.slug}`;
+        const supporters = await ctx.db.supporter.findMany({
+          where: { causeId: input.id, unsubscribed: false },
+          select: { email: true, unsubscribeToken: true },
+        });
+        if (supporters.length > 0) {
+          void sendEmailBlast({
+            supporters,
+            subject: `Update: ${cause.title}`,
+            message: input.updateMessage,
+            causeTitle: cause.title,
+            causeUrl,
+          }).catch((err) =>
+            console.error("Auto-update email blast failed:", err),
+          );
+        }
+      }
+
       const { id, ...data } = input;
       return ctx.db.cause.update({ where: { id }, data });
     }),
@@ -283,6 +310,17 @@ export const causeRouter = createTRPCRouter({
           .string()
           .regex(/^#[0-9a-fA-F]{6}$/)
           .optional(),
+        location: z.string().max(300).optional().nullable(),
+        event: z
+          .object({
+            title: z.string().max(200).optional(),
+            date: z.string(),
+            time: z.string().optional(),
+            recurrence: z.enum(["none", "weekly", "biweekly", "monthly"]),
+            endDate: z.string().optional(),
+          })
+          .optional()
+          .nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {

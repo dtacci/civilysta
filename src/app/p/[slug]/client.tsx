@@ -7,7 +7,8 @@ import { LandingPageRenderer } from "~/components/landing/LandingPageRenderer";
 import { CommentSection } from "~/components/comments/CommentSection";
 import { SupporterForm } from "~/components/supporter/SupporterForm";
 import { ShareSection } from "~/components/share/ShareSection";
-import { Users } from "lucide-react";
+import { EventSection } from "~/components/landing/sections/EventSection";
+import { Users, MapPin } from "lucide-react";
 
 interface CausePageClientProps {
   cause: {
@@ -56,6 +57,57 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
         supporterCount={supporterCount}
         causeSlug={cause.slug}
       />
+
+      {/* Location section */}
+      {(() => {
+        const loc = landingConfig.location as string | undefined;
+        if (!loc) return null;
+        return (
+          <section className="border-t px-4 py-8">
+            <div className="mx-auto max-w-2xl">
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+                <MapPin className="h-5 w-5 text-primary" />
+                Location
+              </h2>
+              <p className="mb-3 text-sm text-muted-foreground">{loc}</p>
+              <div className="aspect-video overflow-hidden rounded-lg border">
+                <iframe
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(loc)}&output=embed`}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Location map"
+                />
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* Event section */}
+      {(() => {
+        const ev = landingConfig.event as
+          | {
+              title?: string;
+              date: string;
+              time?: string;
+              recurrence: "none" | "weekly" | "biweekly" | "monthly";
+              endDate?: string;
+            }
+          | undefined;
+        if (!ev?.date) return null;
+        return (
+          <EventSection
+            event={ev}
+            causeTitle={cause.title}
+            causeDescription={cause.description}
+            causeSlug={cause.slug}
+            location={(landingConfig.location as string) ?? undefined}
+          />
+        );
+      })()}
 
       {/* Support section */}
       <section id="support" className="bg-muted/30 px-4 py-16">

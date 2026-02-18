@@ -6,7 +6,7 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { sendSupporterNotification } from "~/lib/email";
+import { sendSupporterNotification, sendEmailBlast } from "~/lib/email";
 import { fireWebhook } from "~/lib/webhook";
 
 const SUPPORT_RATE_LIMIT = 10; // per hour per IP
@@ -168,5 +168,46 @@ export const supporterRouter = createTRPCRouter({
       });
 
       return { supporters };
+    }),
+
+  sendBlast: protectedProcedure
+    .input(
+      z.object({
+        causeId: z.string(),
+        subject: z.string().min(1).max(200),
+        message: z.string().min(1).max(5000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const cause = await ctx.db.cause.findUnique({
+        where: { id: input.causeId },
+      });
+
+      if (!cause || cause.creatorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const supporters = await ctx.db.supporter.findMany({
+        where: { causeId: input.causeId, unsubscribed: false },
+        select: { email: true, unsubscribeToken: true },
+      });
+
+      if (supporters.length === 0) {
+        return { sent: 0, failed: 0 };
+      }
+
+      const siteUrl =
+        process.env.NEXT_PUBLIC_APP_URL ?? "https://civilysta.com";
+      const causeUrl = `${siteUrl}/p/${cause.slug}`;
+
+      const result = await sendEmailBlast({
+        supporters,
+        subject: input.subject,
+        message: input.message,
+        causeTitle: cause.title,
+        causeUrl,
+      });
+
+      return result;
     }),
 });

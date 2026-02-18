@@ -75,10 +75,13 @@ model CauseImage {
 }
 
 model Supporter {
-  id        String   @id @default(cuid())
-  email     String
-  name      String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id               String    @id @default(cuid())
+  email            String
+  name             String?
+  unsubscribeToken String    @unique @default(cuid()) @map("unsubscribe_token")
+  unsubscribed     Boolean   @default(false)
+  unsubscribedAt   DateTime? @map("unsubscribed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   causeId String @map("cause_id")
   cause   Cause  @relation(fields: [causeId], references: [id], onDelete: Cascade)

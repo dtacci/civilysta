@@ -34,6 +34,10 @@ import {
   X,
   Plus,
   Paintbrush,
+  MapPin,
+  Calendar,
+  Mail,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -83,6 +87,20 @@ export default function ManageCausePage() {
   const [hasDesignChanges, setHasDesignChanges] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Location + Event state (stored in LandingPage.config)
+  const [location, setLocation] = useState("");
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
+  const [eventRecurrence, setEventRecurrence] = useState<
+    "none" | "weekly" | "biweekly" | "monthly"
+  >("none");
+  const [eventEndDate, setEventEndDate] = useState("");
+
+  // Email blast state
+  const [blastSubject, setBlastSubject] = useState("");
+  const [blastMessage, setBlastMessage] = useState("");
+
   // Prefill from cause data
   useEffect(() => {
     if (!cause) return;
@@ -100,6 +118,23 @@ export default function ManageCausePage() {
     setHeroBullets((cfg.heroBullets as string[]) ?? []);
     setCtaText((cfg.ctaText as string) ?? "Support This Cause");
     setPrimaryColor((cfg.primaryColor as string) ?? "#3b82f6");
+    setLocation((cfg.location as string) ?? "");
+    const ev = cfg.event as
+      | {
+          title?: string;
+          date: string;
+          time?: string;
+          recurrence: "none" | "weekly" | "biweekly" | "monthly";
+          endDate?: string;
+        }
+      | undefined;
+    if (ev) {
+      setEventTitle(ev.title ?? "");
+      setEventDate(ev.date ?? "");
+      setEventTime(ev.time ?? "");
+      setEventRecurrence(ev.recurrence ?? "none");
+      setEventEndDate(ev.endDate ?? "");
+    }
   }, [cause]);
 
   // Track content changes
@@ -157,6 +192,15 @@ export default function ManageCausePage() {
     onError: (err) => toast.error(err.message),
   });
 
+  const sendBlast = trpc.supporter.sendBlast.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Email sent to ${result.sent} supporter${result.sent === 1 ? "" : "s"}`);
+      setBlastSubject("");
+      setBlastMessage("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const handleSave = () => {
     updateCause.mutate({
       id,
@@ -178,6 +222,19 @@ export default function ManageCausePage() {
       heroBullets,
       ctaText,
       primaryColor,
+      location: location || null,
+      event: eventDate
+        ? {
+            title: eventTitle || undefined,
+            date: eventDate,
+            time: eventTime || undefined,
+            recurrence: eventRecurrence,
+            endDate:
+              eventRecurrence !== "none" && eventEndDate
+                ? eventEndDate
+                : undefined,
+          }
+        : null,
     });
   };
 
@@ -452,6 +509,27 @@ export default function ManageCausePage() {
                 </div>
                 <div>
                   <label
+                    htmlFor="edit-location"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />
+                      Location
+                    </span>
+                  </label>
+                  <Input
+                    id="edit-location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g., City Hall, 123 Main St, Sacramento CA"
+                    maxLength={300}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    A map will appear on your public page
+                  </p>
+                </div>
+                <div>
+                  <label
                     htmlFor="edit-update"
                     className="mb-1.5 block text-sm font-medium"
                   >
@@ -469,6 +547,116 @@ export default function ManageCausePage() {
                     Displays as a banner on your cause page
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Event Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="event-title"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    Event Name
+                  </label>
+                  <Input
+                    id="event-title"
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    placeholder={cause.title}
+                    maxLength={200}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Defaults to your cause title if blank
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="event-date"
+                      className="mb-1.5 block text-sm font-medium"
+                    >
+                      Date
+                    </label>
+                    <Input
+                      id="event-date"
+                      type="date"
+                      value={eventDate}
+                      onChange={(e) => setEventDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="event-time"
+                      className="mb-1.5 block text-sm font-medium"
+                    >
+                      Time
+                    </label>
+                    <Input
+                      id="event-time"
+                      type="time"
+                      value={eventTime}
+                      onChange={(e) => setEventTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="event-recurrence"
+                      className="mb-1.5 block text-sm font-medium"
+                    >
+                      Repeats
+                    </label>
+                    <select
+                      id="event-recurrence"
+                      value={eventRecurrence}
+                      onChange={(e) =>
+                        setEventRecurrence(
+                          e.target.value as
+                            | "none"
+                            | "weekly"
+                            | "biweekly"
+                            | "monthly",
+                        )
+                      }
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="none">Does not repeat</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="biweekly">Every 2 weeks</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                  {eventRecurrence !== "none" && (
+                    <div>
+                      <label
+                        htmlFor="event-end-date"
+                        className="mb-1.5 block text-sm font-medium"
+                      >
+                        Until
+                      </label>
+                      <Input
+                        id="event-end-date"
+                        type="date"
+                        value={eventEndDate}
+                        onChange={(e) => setEventEndDate(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+                {!eventDate && (
+                  <p className="text-xs text-muted-foreground">
+                    Add a date to show an event card with calendar integration on
+                    your page
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -756,6 +944,7 @@ export default function ManageCausePage() {
 
         {/* ============ SUPPORTERS TAB ============ */}
         {tab === "supporters" && (
+          <div className="space-y-6">
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle>Supporters ({cause._count.supporters})</CardTitle>
@@ -815,6 +1004,79 @@ export default function ManageCausePage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Email Blast */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Email Your Supporters
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label
+                  htmlFor="blast-subject"
+                  className="mb-1.5 block text-sm font-medium"
+                >
+                  Subject
+                </label>
+                <Input
+                  id="blast-subject"
+                  value={blastSubject}
+                  onChange={(e) => setBlastSubject(e.target.value)}
+                  placeholder={`Update from ${cause.title}`}
+                  maxLength={200}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="blast-message"
+                  className="mb-1.5 block text-sm font-medium"
+                >
+                  Message
+                </label>
+                <Textarea
+                  id="blast-message"
+                  value={blastMessage}
+                  onChange={(e) => setBlastMessage(e.target.value)}
+                  rows={5}
+                  maxLength={5000}
+                  placeholder="Write your message to supporters..."
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Includes an unsubscribe link in every email
+                </p>
+                <Button
+                  onClick={() =>
+                    sendBlast.mutate({
+                      causeId: id,
+                      subject: blastSubject,
+                      message: blastMessage,
+                    })
+                  }
+                  disabled={
+                    !blastSubject.trim() ||
+                    !blastMessage.trim() ||
+                    sendBlast.isPending ||
+                    supporters.length === 0
+                  }
+                  size="sm"
+                >
+                  {sendBlast.isPending ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Send to {cause._count.supporters} supporter
+                  {cause._count.supporters === 1 ? "" : "s"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          </div>
         )}
 
         {/* ============ SHARE TAB ============ */}
