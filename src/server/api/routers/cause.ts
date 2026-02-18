@@ -1,4 +1,5 @@
 import { z } from "zod";
+import crypto from "crypto";
 import {
   createTRPCRouter,
   publicProcedure,
@@ -7,7 +8,23 @@ import {
 import { generateUniqueSlug } from "~/lib/landing-page/slug-generator";
 import { generateCauseContent } from "~/lib/ai/cause-generator";
 import { generateCauseImages } from "~/lib/ai/image-generator";
+import { checkModeration } from "~/lib/moderation";
 import { TRPCError } from "@trpc/server";
+
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function hashIp(ip: string): string {
+  return crypto.createHash("sha256").update(ip).digest("hex");
+}
+
+function getClientIp(headers: Headers): string {
+  return (
+    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
 
 export const causeRouter = createTRPCRouter({
   getBySlug: publicProcedure
@@ -27,7 +44,7 @@ export const causeRouter = createTRPCRouter({
         },
       });
 
-      if (!cause || cause.status === "ARCHIVED") {
+      if (!cause || cause.status !== "PUBLISHED") {
         throw new TRPCError({ code: "NOT_FOUND", message: "Cause not found" });
       }
 
@@ -41,7 +58,35 @@ export const causeRouter = createTRPCRouter({
         description: z.string().min(10).max(2000),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      // Rate limiting — 5 requests per hour per IP
+      const ip = getClientIp(ctx.headers);
+      const ipHash = hashIp(ip);
+      const oneHourAgo = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+
+      const recentRequests = await ctx.db.generationRequest.count({
+        where: { ipHash, createdAt: { gte: oneHourAgo } },
+      });
+
+      if (recentRequests >= RATE_LIMIT_MAX) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message:
+            "You've reached the generation limit. Please try again in an hour.",
+        });
+      }
+
+      // Log this request + clean up old records
+      await Promise.all([
+        ctx.db.generationRequest.create({ data: { ipHash } }),
+        ctx.db.generationRequest.deleteMany({
+          where: { createdAt: { lt: oneHourAgo } },
+        }),
+      ]);
+
+      // Content moderation on user input
+      await checkModeration(input.title + " " + input.description);
+
       const [content, images] = await Promise.all([
         generateCauseContent(input.title, input.description),
         generateCauseImages(input.title, input.description),
@@ -65,7 +110,16 @@ export const causeRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Content moderation on user input
+      await checkModeration(input.title + " " + input.description);
+
       const slug = await generateUniqueSlug(input.title);
+
+      // Feature-flagged review queue
+      const requireReview = process.env.REQUIRE_REVIEW === "true";
+      const causeStatus = requireReview ? "PENDING_REVIEW" : "PUBLISHED";
+      const landingStatus = requireReview ? "PENDING_REVIEW" : "PUBLISHED";
+      const publishedAt = requireReview ? null : new Date();
 
       const cause = await ctx.db.cause.create({
         data: {
@@ -74,12 +128,12 @@ export const causeRouter = createTRPCRouter({
           description: input.description,
           goal: input.goal,
           imageUrl: input.selectedImageUrl,
-          status: "PUBLISHED",
+          status: causeStatus,
           creatorId: ctx.user.id,
           landingPage: {
             create: {
-              status: "PUBLISHED",
-              publishedAt: new Date(),
+              status: landingStatus,
+              publishedAt,
               config: {
                 title: input.title,
                 description: input.description,
@@ -129,7 +183,9 @@ export const causeRouter = createTRPCRouter({
         title: z.string().min(3).max(200).optional(),
         description: z.string().min(10).max(2000).optional(),
         goal: z.string().max(500).optional(),
-        status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+        status: z
+          .enum(["DRAFT", "PUBLISHED", "PENDING_REVIEW", "ARCHIVED"])
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

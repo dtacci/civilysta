@@ -51,7 +51,9 @@ model Cause {
 
 enum CauseStatus {
   DRAFT
+  PENDING_REVIEW
   PUBLISHED
+  REJECTED
   ARCHIVED
 }
 
@@ -147,6 +149,17 @@ model LandingPage {
 
 enum LandingPageStatus {
   DRAFT
+  PENDING_REVIEW
   PUBLISHED
+  REJECTED
   ARCHIVED
+}
+
+model GenerationRequest {
+  id        String   @id @default(cuid())
+  ipHash    String   @map("ip_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ipHash, createdAt])
+  @@map("generation_requests")
 }

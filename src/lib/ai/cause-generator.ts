@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { sanitizeAboutBody } from "~/lib/moderation";
 
 function getOpenAI() {
   return new OpenAI({
@@ -48,5 +49,7 @@ export async function generateCauseContent(
     throw new Error("No content generated");
   }
 
-  return JSON.parse(content) as CauseContent;
+  const parsed = JSON.parse(content) as CauseContent;
+  parsed.aboutBody = sanitizeAboutBody(parsed.aboutBody);
+  return parsed;
 }
