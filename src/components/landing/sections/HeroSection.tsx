@@ -64,18 +64,26 @@ export function HeroSection({ content, config: _config }: HeroSectionProps) {
           content.supporterCount !== undefined && (
             <div className="mb-8">
               <div className="mb-4 flex items-center justify-center gap-4">
-                <div className="text-3xl font-bold">
-                  {content.supporterCount.toLocaleString()}
-                </div>
-                {content.supporterGoal && (
+                {content.supporterCount > 0 ? (
                   <>
-                    <div className="text-lg opacity-80">of</div>
-                    <div className="text-2xl font-semibold opacity-90">
-                      {content.supporterGoal.toLocaleString()}
+                    <div className="text-3xl font-bold">
+                      {content.supporterCount.toLocaleString()}
                     </div>
+                    {content.supporterGoal && (
+                      <>
+                        <div className="text-lg opacity-80">of</div>
+                        <div className="text-2xl font-semibold opacity-90">
+                          {content.supporterGoal.toLocaleString()}
+                        </div>
+                      </>
+                    )}
+                    <div className="text-lg opacity-80">supporters</div>
                   </>
+                ) : (
+                  <div className="text-lg font-medium opacity-80">
+                    Be the first to support this cause
+                  </div>
                 )}
-                <div className="text-lg opacity-80">supporters</div>
               </div>
 
               {content.supporterGoal && (

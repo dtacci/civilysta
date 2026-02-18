@@ -68,7 +68,7 @@ export const commentRouter = createTRPCRouter({
     .input(
       z.object({
         causeId: z.string(),
-        content: z.string().min(1).max(5000),
+        content: z.string().min(1).max(2000),
         parentId: z.string().optional(),
       })
     )

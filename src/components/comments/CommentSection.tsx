@@ -143,7 +143,7 @@ function CommentCard({
   const userVote = comment.votes?.[0]?.voteType;
 
   return (
-    <div className={cn("space-y-3", depth > 0 && "ml-8 border-l-2 border-muted pl-4")}>
+    <div className={cn("space-y-3", depth > 0 && "ml-3 md:ml-8 border-l-2 border-muted pl-4")}>
       <div className="rounded-lg bg-muted/30 p-4">
         <div className="mb-2 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
@@ -200,7 +200,7 @@ function CommentCard({
 
       {/* Reply form */}
       {replyingTo === comment.id && (
-        <div className="ml-8 space-y-2">
+        <div className="ml-3 md:ml-8 space-y-2">
           <Textarea
             placeholder="Write a reply..."
             value={replyContent}

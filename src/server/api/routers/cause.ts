@@ -101,12 +101,23 @@ export const causeRouter = createTRPCRouter({
         title: z.string().min(3).max(200),
         description: z.string().min(10).max(2000),
         goal: z.string().max(500).optional(),
-        selectedImageUrl: z.string().url().optional(),
-        heroHeadline: z.string().optional(),
-        heroSubheadline: z.string().optional(),
-        heroBullets: z.array(z.string()).optional(),
-        ctaText: z.string().optional(),
-        primaryColor: z.string().optional(),
+        selectedImageUrl: z
+          .string()
+          .refine(
+            (url) =>
+              url.startsWith("data:image/") ||
+              url.startsWith("https://") ,
+            { message: "Image must be a data URI or HTTPS URL" }
+          )
+          .optional(),
+        heroHeadline: z.string().max(200).optional(),
+        heroSubheadline: z.string().max(500).optional(),
+        heroBullets: z.array(z.string().max(200)).max(10).optional(),
+        ctaText: z.string().max(50).optional(),
+        primaryColor: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color")
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
