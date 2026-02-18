@@ -16,6 +16,7 @@ export function CommentSection({ causeId }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
+  const [error, setError] = useState("");
 
   const utils = trpc.useUtils();
 
@@ -30,13 +31,26 @@ export function CommentSection({ causeId }: CommentSectionProps) {
       setNewComment("");
       setReplyContent("");
       setReplyingTo(null);
+      setError("");
       utils.comment.getByCause.invalidate({ causeId });
+    },
+    onError: (err) => {
+      if (err.data?.code === "UNAUTHORIZED") {
+        setError("You need to sign in to comment. Use the magic link when publishing a cause, or sign in first.");
+      } else {
+        setError(err.message);
+      }
     },
   });
 
   const vote = trpc.comment.vote.useMutation({
     onSuccess: () => {
       utils.comment.getByCause.invalidate({ causeId });
+    },
+    onError: (err) => {
+      if (err.data?.code === "UNAUTHORIZED") {
+        setError("You need to sign in to vote.");
+      }
     },
   });
 
@@ -81,6 +95,9 @@ export function CommentSection({ causeId }: CommentSectionProps) {
         >
           {createComment.isPending ? "Posting..." : "Post Comment"}
         </Button>
+        {error && (
+          <p className="text-sm text-destructive">{error}</p>
+        )}
       </div>
 
       {/* Comments list */}

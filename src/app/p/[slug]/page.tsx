@@ -76,7 +76,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
 
   const cause = await db.cause.findUnique({
-    where: { slug },
+    where: { slug, status: "PUBLISHED" },
     select: {
       title: true,
       description: true,
@@ -89,6 +89,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://civilysta.com";
+  // Only use HTTPS image URLs in OG metadata — data: URIs are ignored by social crawlers
+  const ogImage = cause.imageUrl?.startsWith("https://") ? cause.imageUrl : null;
 
   return {
     title: cause.title,
@@ -96,7 +98,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title: cause.title,
       description: cause.description,
-      images: cause.imageUrl ? [cause.imageUrl] : [],
+      images: ogImage ? [ogImage] : [],
       url: `${siteUrl}/p/${slug}`,
       type: "website",
       siteName: "Civilysta",
@@ -105,7 +107,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       card: "summary_large_image",
       title: cause.title,
       description: cause.description,
-      images: cause.imageUrl ? [cause.imageUrl] : [],
+      images: ogImage ? [ogImage] : [],
     },
     alternates: {
       canonical: `${siteUrl}/p/${slug}`,

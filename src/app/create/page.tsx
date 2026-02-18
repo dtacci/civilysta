@@ -54,6 +54,8 @@ export default function CreateCausePage() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [otpPending, setOtpPending] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   // Restore draft from localStorage after magic link auth
   useEffect(() => {
@@ -132,6 +134,9 @@ export default function CreateCausePage() {
   const handleMagicLink = async () => {
     if (!authEmail.trim()) return;
 
+    setOtpPending(true);
+    setOtpError("");
+
     // Save draft so it survives the redirect
     localStorage.setItem(
       "civilysta_draft",
@@ -153,7 +158,10 @@ export default function CreateCausePage() {
       },
     });
 
-    if (!error) {
+    setOtpPending(false);
+    if (error) {
+      setOtpError(error.message);
+    } else {
       setMagicLinkSent(true);
     }
   };
@@ -213,6 +221,9 @@ export default function CreateCausePage() {
                     onChange={(e) => setTitle(e.target.value)}
                     maxLength={200}
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {title.length}/200
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="cause-description" className="mb-2 block text-sm font-medium">
@@ -432,10 +443,22 @@ export default function CreateCausePage() {
                       <Button
                         onClick={handleMagicLink}
                         className="w-full"
-                        disabled={!authEmail.trim()}
+                        disabled={!authEmail.trim() || otpPending}
                       >
-                        Send Magic Link
+                        {otpPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          "Send Magic Link"
+                        )}
                       </Button>
+                      {otpError && (
+                        <p className="text-center text-sm text-destructive">
+                          {otpError}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground text-center">
                         Your draft is saved. After clicking the link in your
                         email, you&apos;ll return here automatically.

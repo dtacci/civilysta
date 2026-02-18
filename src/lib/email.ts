@@ -2,6 +2,15 @@ import { Resend } from "resend";
 
 const FROM_ADDRESS = "Civilysta <notifications@civilysta.com>";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
 }
@@ -42,8 +51,8 @@ export async function sendSupporterNotification({
     subject: `${displayName} just supported your cause`,
     html: `
       <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
-        <p><strong>${displayName}</strong> just signed up to support:</p>
-        <h2 style="margin:16px 0">${causeTitle}</h2>
+        <p><strong>${escapeHtml(displayName)}</strong> just signed up to support:</p>
+        <h2 style="margin:16px 0">${escapeHtml(causeTitle)}</h2>
         <p><a href="${causeUrl}" style="color:#3b82f6">View your cause &rarr;</a></p>
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
         <p style="font-size:12px;color:#666">
@@ -85,8 +94,8 @@ export async function sendEmailBlast({
       },
       html: `
         <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
-          <h2 style="margin:0 0 8px">${causeTitle}</h2>
-          <p style="white-space:pre-wrap">${message}</p>
+          <h2 style="margin:0 0 8px">${escapeHtml(causeTitle)}</h2>
+          <p style="white-space:pre-wrap">${escapeHtml(message)}</p>
           <p style="margin-top:16px">
             <a href="${causeUrl}" style="color:#3b82f6">View cause &rarr;</a>
           </p>

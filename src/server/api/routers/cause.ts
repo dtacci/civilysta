@@ -325,7 +325,15 @@ export const causeRouter = createTRPCRouter({
         id: z.string(),
         heroHeadline: z.string().min(1).max(200).optional(),
         heroSubheadline: z.string().max(500).optional(),
-        heroImage: z.string().optional().nullable(),
+        heroImage: z
+          .string()
+          .refine(
+            (url) =>
+              url.startsWith("data:image/") || url.startsWith("https://"),
+            { message: "Image must be a data URI or HTTPS URL" },
+          )
+          .optional()
+          .nullable(),
         heroBullets: z.array(z.string().max(200)).max(10).optional(),
         ctaText: z.string().max(50).optional(),
         primaryColor: z

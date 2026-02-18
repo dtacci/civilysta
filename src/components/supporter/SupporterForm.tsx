@@ -4,7 +4,7 @@ import { useState } from "react";
 import { trpc } from "~/lib/trpc/client";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Heart, Check } from "lucide-react";
+import { Heart, Check, Share2 } from "lucide-react";
 
 interface SupporterFormProps {
   causeId: string;
@@ -33,9 +33,16 @@ export function SupporterForm({
       <div className="rounded-lg border bg-primary/5 p-8 text-center">
         <Check className="mx-auto mb-4 h-12 w-12 text-primary" />
         <h3 className="mb-2 text-xl font-bold">Thank you for your support!</h3>
-        <p className="text-muted-foreground">
+        <p className="mb-4 text-muted-foreground">
           You&apos;re now part of the movement for &ldquo;{causeTitle}&rdquo;.
         </p>
+        <a
+          href="#share"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Share2 className="h-4 w-4" />
+          Help spread the word
+        </a>
       </div>
     );
   }
