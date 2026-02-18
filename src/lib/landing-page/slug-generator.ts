@@ -1,52 +1,69 @@
+import crypto from "crypto";
 import { z } from "zod";
 import { db } from "~/server/db";
 
 export const slugSchema = z
   .string()
   .min(3, "Slug must be at least 3 characters")
-  .max(50, "Slug must be less than 50 characters")
+  .max(60, "Slug must be less than 60 characters")
   .regex(
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    "Slug must contain only lowercase letters, numbers, and hyphens"
+    "Only lowercase letters, numbers, and hyphens allowed"
   );
 
+/** Words that add no meaning to a slug */
+const STOP_WORDS = new Set([
+  "a", "an", "the", "and", "or", "but", "in", "on", "at", "to",
+  "for", "of", "with", "by", "from", "is", "are", "was", "were",
+  "be", "been", "being", "have", "has", "had", "do", "does", "did",
+  "will", "would", "shall", "should", "may", "might", "must", "can",
+  "could", "this", "that", "these", "those", "my", "our", "your",
+  "its", "his", "her", "their", "we", "us", "it",
+]);
+
+function randomSuffix(len = 3): string {
+  return crypto.randomBytes(2).toString("base64url").slice(0, len).toLowerCase();
+}
+
 export function generateSlug(title: string): string {
-  return title
+  const words = title
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .split(/[\s_-]+/)
+    .filter(Boolean);
+
+  // Keep up to 4 meaningful words (skip stop words unless that leaves nothing)
+  const meaningful = words.filter((w) => !STOP_WORDS.has(w));
+  const chosen = (meaningful.length > 0 ? meaningful : words).slice(0, 4);
+
+  const base = chosen.join("-");
+  if (base.length < 2) return `cause-${randomSuffix(5)}`;
+
+  return `${base}-${randomSuffix()}`;
 }
 
-export async function isSlugAvailable(slug: string): Promise<boolean> {
+export async function isSlugAvailable(
+  slug: string,
+  excludeId?: string,
+): Promise<boolean> {
   const existing = await db.cause.findUnique({
     where: { slug },
     select: { id: true },
   });
-  return !existing;
+  if (!existing) return true;
+  if (excludeId && existing.id === excludeId) return true;
+  return false;
 }
 
-export async function generateUniqueSlug(
-  title: string,
-  maxAttempts = 10
-): Promise<string> {
-  let baseSlug = generateSlug(title);
-
-  if (baseSlug.length < 3) {
-    baseSlug = `cause-${Date.now().toString(36)}`;
-  }
-
-  if (await isSlugAvailable(baseSlug)) {
-    return baseSlug;
-  }
-
-  for (let i = 1; i <= maxAttempts; i++) {
-    const slugWithNumber = `${baseSlug}-${i}`;
-    if (await isSlugAvailable(slugWithNumber)) {
-      return slugWithNumber;
+export async function generateUniqueSlug(title: string): Promise<string> {
+  // Try up to 5 times — suffix collision is astronomically unlikely
+  for (let i = 0; i < 5; i++) {
+    const slug = generateSlug(title);
+    if (await isSlugAvailable(slug)) {
+      return slug;
     }
   }
-
-  return `${baseSlug}-${Date.now().toString(36)}`;
+  // Nuclear fallback
+  return `${generateSlug(title).split("-").slice(0, 4).join("-")}-${Date.now().toString(36)}`;
 }

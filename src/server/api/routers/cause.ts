@@ -5,7 +5,11 @@ import {
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { generateUniqueSlug } from "~/lib/landing-page/slug-generator";
+import {
+  generateUniqueSlug,
+  slugSchema,
+  isSlugAvailable,
+} from "~/lib/landing-page/slug-generator";
 import { generateCauseContent } from "~/lib/ai/cause-generator";
 import { generateCauseImages } from "~/lib/ai/image-generator";
 import { checkModeration } from "~/lib/moderation";
@@ -236,6 +240,7 @@ export const causeRouter = createTRPCRouter({
         title: z.string().min(3).max(200).optional(),
         description: z.string().min(10).max(2000).optional(),
         goal: z.string().max(500).optional(),
+        slug: slugSchema.optional(),
         status: z
           .enum(["DRAFT", "PUBLISHED", "PENDING_REVIEW", "ARCHIVED"])
           .optional(),
@@ -250,6 +255,17 @@ export const causeRouter = createTRPCRouter({
 
       if (!cause || cause.creatorId !== ctx.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      // Validate slug uniqueness if changing
+      if (input.slug && input.slug !== cause.slug) {
+        const available = await isSlugAvailable(input.slug, input.id);
+        if (!available) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "This URL is already taken. Try another.",
+          });
+        }
       }
 
       // Auto-blast supporters when updateMessage changes

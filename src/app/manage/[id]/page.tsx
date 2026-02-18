@@ -68,6 +68,7 @@ export default function ManageCausePage() {
 
   // Content tab state
   const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [goal, setGoal] = useState("");
   const [updateMessage, setUpdateMessage] = useState("");
@@ -105,6 +106,7 @@ export default function ManageCausePage() {
   useEffect(() => {
     if (!cause) return;
     setTitle(cause.title);
+    setSlug(cause.slug);
     setDescription(cause.description);
     setGoal(cause.goal ?? "");
     setUpdateMessage(cause.updateMessage ?? "");
@@ -142,13 +144,14 @@ export default function ManageCausePage() {
     if (!cause) return;
     setHasChanges(
       title !== cause.title ||
+        slug !== cause.slug ||
         description !== cause.description ||
         (goal || "") !== (cause.goal ?? "") ||
         (updateMessage || "") !== (cause.updateMessage ?? "") ||
         (webhookUrl || "") !== (cause.webhookUrl ?? "") ||
         status !== cause.status,
     );
-  }, [title, description, goal, updateMessage, webhookUrl, status, cause]);
+  }, [title, slug, description, goal, updateMessage, webhookUrl, status, cause]);
 
   // Track design changes
   useEffect(() => {
@@ -205,6 +208,7 @@ export default function ManageCausePage() {
     updateCause.mutate({
       id,
       title,
+      slug: slug !== cause?.slug ? slug : undefined,
       description,
       goal: goal || undefined,
       updateMessage: updateMessage || null,
@@ -476,6 +480,42 @@ export default function ManageCausePage() {
                     onChange={(e) => setTitle(e.target.value)}
                     maxLength={200}
                   />
+                </div>
+                <div>
+                  <label
+                    htmlFor="edit-slug"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    URL
+                  </label>
+                  <div className="flex items-center gap-0">
+                    <span className="flex h-9 items-center rounded-l-md border border-r-0 bg-muted px-3 text-xs text-muted-foreground">
+                      {typeof window !== "undefined"
+                        ? `${window.location.origin}/p/`
+                        : "/p/"}
+                    </span>
+                    <Input
+                      id="edit-slug"
+                      value={slug}
+                      onChange={(e) =>
+                        setSlug(
+                          e.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9-]/g, "")
+                            .replace(/--+/g, "-"),
+                        )
+                      }
+                      maxLength={60}
+                      className="rounded-l-none font-mono text-sm"
+                    />
+                  </div>
+                  {slug && slug !== cause?.slug && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length >= 3
+                        ? "Looks good! Save to apply the new URL."
+                        : "Only lowercase letters, numbers, and hyphens (min 3 chars)"}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label
