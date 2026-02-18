@@ -13,27 +13,63 @@ The closest real-world analogy is what Carrd.co accidentally became during BLM 2
 
 ---
 
+## Features
+
+### Create Flow (3 steps, no account needed to start)
+
+- **AI-powered site generation** — Enter a title and description; GPT-4o-mini generates hero copy (headline, subheadline, bullets, CTA) and About section
+- **AI image generation** — 3 hero banner options generated via Google Generative AI (falls back to branded SVG placeholders)
+- **Regenerate content** — "Try different content" button on the review step re-runs AI generation without going back to Step 1
+- **Live preview** — Full-page preview of your cause site before publishing
+- **Brand color picker** — Choose a primary color to theme your site
+- **Magic link auth** — Email-only sign-in at the moment of publishing; draft is auto-saved and restored after redirect
+
+### Cause Pages (`/p/your-cause-slug`)
+
+- **Server-rendered** with full SEO metadata (title, description, Open Graph, Twitter Cards)
+- **Dynamic OG images** — Server-rendered 1200x630 branded cards via `next/og` ImageResponse; uses hero image as darkened background when available, navy gradient otherwise
+- **Hero section** with AI-generated copy and selected image
+- **Email petition** — Supporters sign up with email; deduplicated per cause
+- **Threaded comments** — Up to 3 levels deep, with upvote/downvote system and sort by newest/oldest/top
+- **Event support** — Attach events with date, time, location, and recurrence; downloadable `.ics` calendar files and Google Calendar links
+- **Social sharing** — WhatsApp, X/Twitter, Facebook share buttons plus native Web Share API and QR code
+- **Supporter count** — Denormalized counter updated atomically (no `COUNT(*)` on every page load)
+
+### Cause Management (`/manage` + `/manage/[id]`)
+
+- **Dashboard** — List all your causes with status indicators
+- **Content editing** — Update title, slug, description, goal, location, campaign update message, and status (Draft/Published/Archived)
+- **Landing page customization** — Hero image upload, editable headline/subheadline, up to 6 key points, CTA text, and 6 preset color themes with live preview
+- **Supporter management** — View all supporters with name, email, and join date; export as CSV; generate printable petition document
+- **Email blasts** — Send bulk emails to supporters with proper unsubscribe headers (RFC 8058); auto-blast when campaign update message changes
+- **Share tab** — QR code generation and copy-to-clipboard
+- **Webhook integrations** — Configure a webhook URL to receive JSON payloads on new supporter signups
+
+### Post-Creation Success Page
+
+- **Shareable URL** with copy button
+- **QR code** for the cause page
+- **Social share buttons** — WhatsApp, X, Facebook, native share, all pre-filled with cause title
+- **Quick links** to view the cause or go to the dashboard
+
+### Home Page
+
+- Marketing landing page with features, how-it-works, and CTA sections
+- Open Graph and Twitter Card metadata for link previews when sharing `civilysta.com`
+
+### Platform Features
+
+- **IP-based rate limiting** — 5 AI generations/hour, 10 supporter signups/hour, 10 comments/hour per IP
+- **Content moderation** — OpenAI Moderation API checks cause titles/descriptions on creation and updates
+- **HTML sanitization** — AI-generated content is sanitized to allow only safe HTML tags
+- **Email notifications** via Resend — Creator notified on new supporter; bulk email blasts with unsubscribe support
+- **Webhook delivery** — Fire-and-forget JSON payloads on new supporters (5s timeout)
+- **Privacy policy** page at `/privacy`
+- **iCalendar generation** — `/api/event/[slug]/calendar.ics` with recurring event support (RRULE)
+
+---
+
 ## How It Works
-
-### 1. Describe your cause
-
-Enter a title and 1-3 sentences about what you're fighting for. No account needed — the AI preview is completely public.
-
-### 2. Review AI output
-
-AI generates:
-- **Hero copy** — headline, subheadline, 3-bullet "what we're asking for," and a call-to-action (via GPT-4o-mini)
-- **3 image options** — photorealistic hero banner variations (via Google Imagen, currently using SVG placeholders)
-
-You pick an image, see a full live preview of your site, and can adjust the brand color.
-
-### 3. Publish
-
-Sign in with a magic link (email, no password). Hit publish. You get:
-- A live URL at `/p/your-cause-slug`
-- A downloadable QR code
-- SEO-optimized Open Graph and Twitter Card metadata
-- A built-in supporter petition and threaded discussion
 
 ```
 User types title + description
@@ -43,6 +79,7 @@ User types title + description
          |
          v
   User reviews preview, picks image + color
+  (can regenerate content without going back)
          |
          v
   Magic link auth → publish
@@ -50,9 +87,11 @@ User types title + description
          v
   /p/{slug} is live with:
     - Hero section with AI copy + image
+    - Dynamic OG image for social sharing
     - "Support This Cause" email petition
     - Threaded comment discussion
-    - QR code + share tools
+    - Event calendar integration
+    - QR code + social share tools
     - Full SEO metadata
 ```
 
@@ -67,11 +106,13 @@ User types title + description
 | Styling | Tailwind CSS v4 | CSS-first config via `@tailwindcss/postcss` |
 | UI | Radix UI + custom components | shadcn/ui-style Button, Card, Input, etc. |
 | API | tRPC v11 + TanStack Query v5 | Type-safe client-server RPC |
-| Database | PostgreSQL via Prisma v6 | 8 models (down from 114 in the original) |
+| Database | PostgreSQL via Prisma v6 | 8 models |
 | Auth | Supabase Auth | Magic link OTP, server-side sessions |
 | AI (text) | OpenAI GPT-4o-mini | ~$0.001 per cause generation |
-| AI (images) | Google Generative AI | Intended for Imagen 4 Fast (~$0.02/image) |
-| Email | Resend | Installed, not yet wired for notifications |
+| AI (images) | Google Generative AI | Imagen 4 Fast intended (~$0.02/image); SVG fallback |
+| AI (moderation) | OpenAI Moderation API | Content safety checks on creation and updates |
+| OG Images | `next/og` (ImageResponse) | Dynamic server-rendered social preview cards |
+| Email | Resend | Supporter notifications, bulk email blasts, unsubscribe |
 | QR Codes | `qrcode` | Client and server-side generation |
 | Validation | Zod | Input validation across tRPC routers |
 | Serialization | superjson | Handles Dates/Maps over tRPC |
@@ -86,20 +127,26 @@ User types title + description
 
 | Route | Type | Purpose |
 |---|---|---|
-| `/` | Static | Marketing home page |
+| `/` | Static | Marketing home page with OG metadata |
 | `/create` | Client | 3-step cause creation wizard |
+| `/create/success` | Client | Post-publish success page with social share buttons |
 | `/p/[slug]` | SSR | Public cause micro-site with SEO |
+| `/p/[slug]/opengraph-image` | Dynamic | Server-rendered OG image (1200x630) |
 | `/manage` | Client (protected) | Dashboard listing your causes |
+| `/manage/[id]` | Client (protected) | Full cause editor (content, design, supporters, share, integrations) |
+| `/privacy` | Static | Privacy and data policy |
 | `/api/trpc/[trpc]` | API | tRPC endpoint |
+| `/api/event/[slug]/calendar.ics` | API | iCalendar file generation |
+| `/api/unsubscribe` | API | Token-based email unsubscribe handler |
 | `/auth/callback` | API | Supabase magic link callback |
 
 ### tRPC Routers
 
-**`cause`** — `getBySlug` (public), `generatePreview` (public), `create` (protected), `listMine` (protected), `update` (protected), `delete` (protected)
+**`cause`** — `getBySlug` (public), `generatePreview` (public, rate-limited), `create` (protected), `listMine` (protected), `update` (protected), `delete` (protected)
 
-**`supporter`** — `support` (public, email-only petition signup), `getCount` (public)
+**`supporter`** — `support` (public, rate-limited, email-only petition signup), `getCount` (public)
 
-**`comment`** — `getByCause` (public, sortable), `create` (protected, threaded), `vote` (protected, up/down toggle)
+**`comment`** — `getByCause` (public, sortable), `create` (protected, rate-limited, threaded), `vote` (protected, up/down toggle)
 
 ### Key Design Decisions
 
@@ -108,6 +155,7 @@ User types title + description
 - **Denormalized supporter count.** `cause.supporterCount` is an integer field updated atomically in a Prisma transaction alongside the `Supporter` insert, avoiding `COUNT(*)` on every page load.
 - **Landing page config is a JSON blob.** The `LandingPage.config` stores the full rendering configuration, so the page can be rendered without re-querying AI or reconstructing state.
 - **Comment threading capped at depth 3.** Enforced server-side in the `comment.create` router. The `depth` field is stored on each comment for efficient rendering.
+- **IP-based rate limiting.** Uses a `GenerationRequest` table to track requests by hashed IP with automatic cleanup of old records.
 
 ---
 
@@ -119,6 +167,7 @@ User types title + description
 - PostgreSQL (or a Supabase project)
 - An OpenAI API key
 - (Optional) A Google AI API key for image generation
+- (Optional) A Resend API key for email notifications
 
 ### Setup
 
@@ -163,10 +212,10 @@ The app will be running at `http://localhost:3000`.
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
-| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-4o-mini text generation |
+| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-4o-mini text generation and content moderation |
 | `GOOGLE_AI_API_KEY` | No | Google AI key for image generation (falls back to SVG placeholders) |
 | `NEXT_PUBLIC_APP_URL` | No | Base URL for OG tags and magic links (defaults to `http://localhost:3000`) |
-| `RESEND_API_KEY` | No | Resend key for future email notification support |
+| `RESEND_API_KEY` | No | Resend key for supporter notifications and email blasts |
 
 ---
 
@@ -177,12 +226,13 @@ The app will be running at `http://localhost:3000`.
 | Model | Purpose |
 |---|---|
 | `User` | App users, linked to Supabase Auth via `supabaseId` |
-| `Cause` | The core entity — title, description, slug, status, supporter count |
+| `Cause` | The core entity — title, description, slug, status, supporter count, webhook URL |
 | `CauseImage` | AI-generated images stored per cause (URL, prompt, selection state) |
-| `Supporter` | Email petition signups, unique per cause+email |
+| `Supporter` | Email petition signups, unique per cause+email, with unsubscribe token |
 | `Comment` | Threaded discussion on causes, with depth tracking |
 | `CommentVote` | Up/down votes on comments, unique per comment+user |
 | `LandingPage` | JSON config blob for rendering the public cause page |
+| `GenerationRequest` | IP-based rate limiting tracker with hashed IPs and timestamps |
 
 Enums: `CauseStatus` (DRAFT/PUBLISHED/ARCHIVED), `LandingPageStatus` (DRAFT/PUBLISHED/ARCHIVED), `VoteType` (UP/DOWN)
 
@@ -196,22 +246,34 @@ civilysta-lite/
 │   └── schema.prisma              # 8-model database schema
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx               # Marketing home page
+│   │   ├── page.tsx               # Marketing home page with OG metadata
 │   │   ├── layout.tsx             # Root layout (fonts, TRPCProvider, Toaster)
 │   │   ├── globals.css            # Tailwind v4 theme tokens
 │   │   ├── create/
-│   │   │   └── page.tsx           # 3-step cause creation wizard
+│   │   │   ├── page.tsx           # 3-step cause creation wizard
+│   │   │   └── success/
+│   │   │       └── page.tsx       # Post-publish page with social share
 │   │   ├── p/[slug]/
 │   │   │   ├── page.tsx           # SSR cause page with SEO metadata
-│   │   │   └── client.tsx         # Client-side interactive sections
+│   │   │   ├── client.tsx         # Client-side interactive sections
+│   │   │   └── opengraph-image.tsx # Dynamic OG image generation
 │   │   ├── manage/
-│   │   │   └── page.tsx           # Creator dashboard
+│   │   │   ├── page.tsx           # Creator dashboard
+│   │   │   └── [id]/
+│   │   │       └── page.tsx       # Full cause editor (5 tabs)
+│   │   ├── privacy/
+│   │   │   └── page.tsx           # Privacy & data policy
 │   │   ├── auth/callback/
 │   │   │   └── route.ts           # Supabase magic link handler
-│   │   └── api/trpc/[trpc]/
-│   │       └── route.ts           # tRPC HTTP handler
+│   │   └── api/
+│   │       ├── trpc/[trpc]/
+│   │       │   └── route.ts       # tRPC HTTP handler
+│   │       ├── event/[slug]/
+│   │       │   └── route.ts       # iCalendar file generation
+│   │       └── unsubscribe/
+│   │           └── route.ts       # Email unsubscribe handler
 │   ├── components/
-│   │   ├── ui/                    # Button, Card, Input, Textarea, Badge
+│   │   ├── ui/                    # Button, Card, Input, Textarea, Badge, etc.
 │   │   ├── landing/
 │   │   │   ├── LandingPageRenderer.tsx
 │   │   │   └── sections/          # HeroSection, TextSection, CTASection
@@ -220,7 +282,7 @@ civilysta-lite/
 │   │   ├── supporter/
 │   │   │   └── SupporterForm.tsx  # Email petition signup
 │   │   ├── share/
-│   │   │   └── ShareSection.tsx   # URL copy + QR code display
+│   │   │   └── ShareSection.tsx   # Social share buttons + QR code
 │   │   └── qr/
 │   │       └── QRCodeGenerator.tsx # QR code with PNG/SVG download
 │   ├── lib/
@@ -236,17 +298,18 @@ civilysta-lite/
 │   │   ├── trpc/
 │   │   │   ├── client.ts          # tRPC React hooks
 │   │   │   └── provider.tsx       # TRPCProvider + QueryClient
-│   │   ├── qr-generator.ts       # Server-side QR utilities
-│   │   └── utils.ts              # cn() class name utility
+│   │   ├── email.ts              # Resend email sending (notifications + blasts)
+│   │   ├── qr-generator.ts      # Server-side QR utilities
+│   │   └── utils.ts             # cn() class name utility
 │   ├── server/
 │   │   ├── db.ts                  # Prisma client singleton
 │   │   └── api/
 │   │       ├── trpc.ts           # tRPC context, procedures, auth middleware
 │   │       ├── root.ts           # Router composition
 │   │       └── routers/
-│   │           ├── cause.ts      # CRUD + AI preview generation
-│   │           ├── comment.ts    # Threaded comments + voting
-│   │           └── supporter.ts  # Email petition signups
+│   │           ├── cause.ts      # CRUD + AI preview generation + rate limiting
+│   │           ├── comment.ts    # Threaded comments + voting + rate limiting
+│   │           └── supporter.ts  # Email petition signups + rate limiting + webhooks
 │   └── middleware.ts              # Supabase session refresh + /manage auth guard
 ├── package.json
 ├── tsconfig.json
@@ -260,17 +323,11 @@ civilysta-lite/
 
 ## Known Limitations
 
-These are honest gaps in the current build:
-
 1. **Image generation uses placeholders.** The Google AI SDK call (`gemini-2.0-flash-exp`) does not return image data via the current API path. The fallback generates inline SVGs with a gradient and cause title. Wiring up Imagen 4 Fast via the Vertex AI API or `@google/genai` SDK is the priority fix.
 
-2. **Individual cause management page is not built.** The dashboard links to `/manage/{id}` but that route doesn't exist yet. Editing a cause after publication requires direct DB access for now.
+2. **No persistent image storage layer.** AI-generated images are currently passed as data URLs / base64. Production use needs Vercel Blob or Cloudflare R2 for persistent, CDN-backed image storage.
 
-3. **Email notifications are not wired.** Resend is installed as a dependency but no notification logic exists. Supporters who sign up don't receive confirmation emails or cause updates.
-
-4. **No image storage layer.** AI-generated images are currently passed as data URLs / base64. Production use needs Vercel Blob or Cloudflare R2 for persistent, CDN-backed image storage.
-
-5. **No rate limiting on public AI preview calls.** Anyone can call the AI generation endpoint without auth. Rate limiting was intentionally dropped from v1 to reduce complexity, but should be added before any public deployment.
+3. **No static OG image for home page.** The home page has text-only OG metadata. A designed `/public/og-home.png` would improve social previews when sharing `civilysta.com`.
 
 ---
 
@@ -280,39 +337,38 @@ These are honest gaps in the current build:
 
 - [ ] Wire up real image generation via Google Vertex AI (Imagen 4 Fast)
 - [ ] Add Vercel Blob / Cloudflare R2 for persistent image storage
-- [ ] Build `/manage/[id]` cause editing page
-- [ ] Wire Resend for supporter confirmation emails
-- [ ] Add rate limiting on the public `generatePreview` endpoint
-- [ ] Add cause update/announcement posting
+- [ ] Design static OG image for home page (`/public/og-home.png`)
+- [ ] Supporter confirmation emails on petition signup
+- [ ] OAuth providers (Google, GitHub) alongside magic links
 
 ### Medium-term
 
 - [ ] Subdomain routing (`save-riverside-park.civilysta.com`)
 - [ ] Analytics dashboard (page views, supporter growth over time)
-- [ ] Email blast to supporters when cause owner posts an update
-- [ ] Social sharing previews with dynamically generated OG images
 - [ ] Cause status lifecycle (DRAFT preview link, scheduled publishing)
+- [ ] Embeddable petition widget (`<iframe>` or web component for external sites)
+- [ ] Multi-language AI generation (auto-translate cause pages)
 
-### Managed tier ($5-10/month)
+### Managed Tier ($5-10/month)
 
 For users who want a hosted solution without self-hosting:
 
-- Custom domain mapping (`saveourpark.org` → your cause page)
+- Custom domain mapping (`saveourpark.org` -> your cause page)
 - Unlimited AI image regenerations
-- Email notifications to supporters on cause updates
 - Analytics dashboard with visitor demographics
 - Priority support
 - Remove "Created with Civilysta" footer attribution
 
 ### Long-term / Community Ideas
 
-- Embeddable petition widget (drop an `<iframe>` or web component on any site)
-- Multi-language AI generation (auto-translate cause pages)
 - Cause discovery feed (browse and support causes near you)
 - Civic organization accounts (manage multiple causes under one org)
 - Template marketplace (community-contributed page designs)
 - Offline-first PWA for collecting petition signatures at events
 - Integration with government contact databases (auto-generate "contact your representative" links)
+- A/B testing for hero copy and CTAs
+- Supporter engagement scoring and segmentation
+- Automated social media posting on cause milestones
 
 ---
 

@@ -7,6 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { QRCodeGenerator } from "~/components/qr/QRCodeGenerator";
+import { ShareSection } from "~/components/share/ShareSection";
 import {
   CheckCircle2,
   Copy,
@@ -20,6 +21,7 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = searchParams.get("slug");
+  const title = searchParams.get("title") ?? "My Cause";
 
   const [copied, setCopied] = useState(false);
 
@@ -92,6 +94,11 @@ function SuccessContent() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Social share */}
+      <div className="mb-10">
+        <ShareSection causeSlug={slug} causeTitle={title} />
       </div>
 
       {/* Tip */}

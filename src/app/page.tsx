@@ -1,5 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Zap, Globe, MessageSquare, QrCode } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Civilysta — Launch Your Cause in 60 Seconds",
+  description:
+    "AI-powered micro-sites for civic causes. No setup. No code. Free and open source.",
+  openGraph: {
+    title: "Civilysta — Launch Your Cause in 60 Seconds",
+    description:
+      "AI-powered micro-sites for civic causes. Free, no code, takes 60 seconds.",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
+};
 
 /* ─── Color constants ─── */
 const NAVY = "#06101e";

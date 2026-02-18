@@ -18,6 +18,7 @@ import {
   Rocket,
   Loader2,
   Check,
+  RefreshCw,
 } from "lucide-react";
 
 type Step = 1 | 2 | 3;
@@ -93,7 +94,7 @@ export default function CreateCausePage() {
 
   const createCause = trpc.cause.create.useMutation({
     onSuccess: (data) => {
-      router.push(`/create/success?slug=${data.slug}`);
+      router.push(`/create/success?slug=${data.slug}&title=${encodeURIComponent(title)}`);
     },
   });
 
@@ -272,11 +273,31 @@ export default function CreateCausePage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <div className="flex items-center gap-2">
-                <Eye className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Preview your cause site
-                </span>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-muted-foreground" />
+                  <span className="hidden text-sm text-muted-foreground sm:inline">
+                    Preview your cause site
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGenerate}
+                  disabled={generatePreview.isPending}
+                >
+                  {generatePreview.isPending ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      Regenerating…
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-1 h-4 w-4" />
+                      Try different content
+                    </>
+                  )}
+                </Button>
               </div>
               <Button onClick={() => setStep(3)}>
                 Continue
