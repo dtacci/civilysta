@@ -62,8 +62,18 @@ export async function generateCauseImages(
   return images;
 }
 
+function sanitizePromptInput(str: string): string {
+  // Strip characters that could be used for prompt injection
+  return str
+    .replace(/["""]/g, "")
+    .replace(/\n/g, " ")
+    .slice(0, 200);
+}
+
 function buildImagePrompt(title: string, description: string): string {
-  return `Create a compelling, photorealistic hero image for a civic cause website. The cause is: "${title}". ${description}. The image should be suitable as a website hero banner, 16:9 aspect ratio, professional quality, no text overlay`;
+  const safeTitle = sanitizePromptInput(title);
+  const safeDesc = sanitizePromptInput(description);
+  return `Create a compelling, photorealistic hero image for a civic cause website about: ${safeTitle}. Context: ${safeDesc}. The image should be suitable as a website hero banner, 16:9 aspect ratio, professional quality, no text overlay. Do not include any text, watermarks, or logos in the image.`;
 }
 
 function generatePlaceholderSvg(title: string): string {

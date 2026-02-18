@@ -130,6 +130,21 @@ export const commentRouter = createTRPCRouter({
       });
     }),
 
+  delete: protectedProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.comment.findUnique({
+        where: { id: input.commentId },
+      });
+
+      if (!comment || comment.authorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      await ctx.db.comment.delete({ where: { id: input.commentId } });
+      return { success: true };
+    }),
+
   vote: protectedProcedure
     .input(
       z.object({
@@ -138,81 +153,83 @@ export const commentRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const existingVote = await ctx.db.commentVote.findUnique({
-        where: {
-          commentId_userId: {
+      return ctx.db.$transaction(async (tx) => {
+        const existingVote = await tx.commentVote.findUnique({
+          where: {
+            commentId_userId: {
+              commentId: input.commentId,
+              userId: ctx.user.id,
+            },
+          },
+        });
+
+        if (existingVote) {
+          if (existingVote.voteType === input.voteType) {
+            // Remove vote
+            await tx.commentVote.delete({
+              where: { id: existingVote.id },
+            });
+            await tx.comment.update({
+              where: { id: input.commentId },
+              data: {
+                upvoteCount:
+                  input.voteType === "UP" ? { decrement: 1 } : undefined,
+                downvoteCount:
+                  input.voteType === "DOWN" ? { decrement: 1 } : undefined,
+                score:
+                  input.voteType === "UP"
+                    ? { decrement: 1 }
+                    : { increment: 1 },
+              },
+            });
+            return { action: "removed" as const };
+          } else {
+            // Change vote
+            await tx.commentVote.update({
+              where: { id: existingVote.id },
+              data: { voteType: input.voteType },
+            });
+            await tx.comment.update({
+              where: { id: input.commentId },
+              data: {
+                upvoteCount:
+                  input.voteType === "UP"
+                    ? { increment: 1 }
+                    : { decrement: 1 },
+                downvoteCount:
+                  input.voteType === "DOWN"
+                    ? { increment: 1 }
+                    : { decrement: 1 },
+                score:
+                  input.voteType === "UP"
+                    ? { increment: 2 }
+                    : { decrement: 2 },
+              },
+            });
+            return { action: "changed" as const };
+          }
+        }
+
+        // New vote
+        await tx.commentVote.create({
+          data: {
             commentId: input.commentId,
             userId: ctx.user.id,
+            voteType: input.voteType,
           },
-        },
+        });
+        await tx.comment.update({
+          where: { id: input.commentId },
+          data: {
+            upvoteCount:
+              input.voteType === "UP" ? { increment: 1 } : undefined,
+            downvoteCount:
+              input.voteType === "DOWN" ? { increment: 1 } : undefined,
+            score:
+              input.voteType === "UP" ? { increment: 1 } : { decrement: 1 },
+          },
+        });
+        return { action: "created" as const };
       });
-
-      if (existingVote) {
-        if (existingVote.voteType === input.voteType) {
-          // Remove vote
-          await ctx.db.commentVote.delete({
-            where: { id: existingVote.id },
-          });
-          await ctx.db.comment.update({
-            where: { id: input.commentId },
-            data: {
-              upvoteCount:
-                input.voteType === "UP" ? { decrement: 1 } : undefined,
-              downvoteCount:
-                input.voteType === "DOWN" ? { decrement: 1 } : undefined,
-              score:
-                input.voteType === "UP"
-                  ? { decrement: 1 }
-                  : { increment: 1 },
-            },
-          });
-          return { action: "removed" as const };
-        } else {
-          // Change vote
-          await ctx.db.commentVote.update({
-            where: { id: existingVote.id },
-            data: { voteType: input.voteType },
-          });
-          await ctx.db.comment.update({
-            where: { id: input.commentId },
-            data: {
-              upvoteCount:
-                input.voteType === "UP"
-                  ? { increment: 1 }
-                  : { decrement: 1 },
-              downvoteCount:
-                input.voteType === "DOWN"
-                  ? { increment: 1 }
-                  : { decrement: 1 },
-              score:
-                input.voteType === "UP"
-                  ? { increment: 2 }
-                  : { decrement: 2 },
-            },
-          });
-          return { action: "changed" as const };
-        }
-      }
-
-      // New vote
-      await ctx.db.commentVote.create({
-        data: {
-          commentId: input.commentId,
-          userId: ctx.user.id,
-          voteType: input.voteType,
-        },
-      });
-      await ctx.db.comment.update({
-        where: { id: input.commentId },
-        data: {
-          upvoteCount:
-            input.voteType === "UP" ? { increment: 1 } : undefined,
-          downvoteCount:
-            input.voteType === "DOWN" ? { increment: 1 } : undefined,
-          score:
-            input.voteType === "UP" ? { increment: 1 } : { decrement: 1 },
-        },
-      });
-      return { action: "created" as const };
     }),
 });

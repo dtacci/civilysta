@@ -160,10 +160,11 @@ export default function CreateCausePage() {
             <Card>
               <CardContent className="space-y-4 pt-6">
                 <div>
-                  <label className="mb-2 block text-sm font-medium">
+                  <label htmlFor="cause-title" className="mb-2 block text-sm font-medium">
                     Cause Title
                   </label>
                   <Input
+                    id="cause-title"
                     placeholder='e.g., "Save Riverside Park from Development"'
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -171,10 +172,11 @@ export default function CreateCausePage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium">
+                  <label htmlFor="cause-description" className="mb-2 block text-sm font-medium">
                     Description
                   </label>
                   <Textarea
+                    id="cause-description"
                     placeholder="Describe your cause in 1-3 sentences. What's the problem? What do you want to change?"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -354,7 +356,11 @@ export default function CreateCausePage() {
                         Enter your email to receive a magic link. No password
                         needed.
                       </p>
+                      <label htmlFor="auth-email" className="sr-only">
+                        Email address
+                      </label>
                       <Input
+                        id="auth-email"
                         type="email"
                         placeholder="your@email.com"
                         value={authEmail}
