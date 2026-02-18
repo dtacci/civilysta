@@ -53,16 +53,17 @@ export function SupporterForm({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (!email.trim()) return;
-          support.mutate({ causeId, email, name: name || undefined });
+          if (!name.trim() || !email.trim()) return;
+          support.mutate({ causeId, email, name });
         }}
         className="space-y-4"
       >
         <Input
           type="text"
-          placeholder="Your name (optional)"
+          placeholder="Your full name"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          required
         />
         <Input
           type="email"
@@ -74,7 +75,7 @@ export function SupporterForm({
         <Button
           type="submit"
           className="w-full"
-          disabled={!email.trim() || support.isPending}
+          disabled={!name.trim() || !email.trim() || support.isPending}
         >
           {support.isPending ? "Adding your support..." : "Support This Cause"}
         </Button>
@@ -84,7 +85,8 @@ export function SupporterForm({
           </p>
         )}
         <p className="text-center text-xs text-muted-foreground">
-          Your email will only be used for updates about this cause.
+          Your first name and last initial will appear publicly. Your email
+          is only shared with the cause organizer.
         </p>
       </form>
     </div>

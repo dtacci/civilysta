@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { trpc } from "~/lib/trpc/client";
 import { LandingPageRenderer } from "~/components/landing/LandingPageRenderer";
 import { CommentSection } from "~/components/comments/CommentSection";
 import { SupporterForm } from "~/components/supporter/SupporterForm";
 import { ShareSection } from "~/components/share/ShareSection";
+import { Users } from "lucide-react";
 
 interface CausePageClientProps {
   cause: {
@@ -66,6 +68,9 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
         </div>
       </section>
 
+      {/* Public supporter names */}
+      <SupporterNames causeId={cause.id} totalCount={supporterCount} />
+
       {/* Share section */}
       <section id="share" className="px-4 py-16">
         <div className="mx-auto max-w-2xl">
@@ -99,5 +104,38 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
         </Link>
       </footer>
     </div>
+  );
+}
+
+function SupporterNames({
+  causeId,
+  totalCount,
+}: {
+  causeId: string;
+  totalCount: number;
+}) {
+  const { data } = trpc.supporter.getRecentNames.useQuery({ causeId });
+
+  if (!data?.names.length || totalCount === 0) return null;
+
+  const names = data.names;
+  const remaining = totalCount - names.length;
+
+  let text: string;
+  if (names.length === 1 && remaining <= 0) {
+    text = `${names[0]} supports this cause`;
+  } else if (remaining <= 0) {
+    text = `${names.join(", ")} support this cause`;
+  } else {
+    text = `${names.join(", ")}, and ${remaining.toLocaleString()} other${remaining === 1 ? "" : "s"} support this cause`;
+  }
+
+  return (
+    <section className="px-4 py-8">
+      <div className="mx-auto flex max-w-2xl items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+        <Users className="h-4 w-4 shrink-0" />
+        <p>{text}</p>
+      </div>
+    </section>
   );
 }

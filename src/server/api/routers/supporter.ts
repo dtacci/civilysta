@@ -18,7 +18,7 @@ export const supporterRouter = createTRPCRouter({
       z.object({
         causeId: z.string(),
         email: z.string().email(),
-        name: z.string().max(100).optional(),
+        name: z.string().min(1).max(100),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -126,6 +126,28 @@ export const supporterRouter = createTRPCRouter({
         select: { supporterCount: true },
       });
       return { count: cause?.supporterCount ?? 0 };
+    }),
+
+  getRecentNames: publicProcedure
+    .input(z.object({ causeId: z.string(), limit: z.number().min(1).max(20).default(10) }))
+    .query(async ({ ctx, input }) => {
+      const supporters = await ctx.db.supporter.findMany({
+        where: { causeId: input.causeId, name: { not: null } },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+        select: { name: true, createdAt: true },
+      });
+
+      // Return first name + last initial only (privacy)
+      const names = supporters.map((s) => {
+        const parts = (s.name ?? "").trim().split(/\s+/);
+        if (parts.length >= 2) {
+          return `${parts[0]} ${parts[parts.length - 1]![0]!.toUpperCase()}.`;
+        }
+        return parts[0] ?? "Supporter";
+      });
+
+      return { names };
     }),
 
   listByCause: protectedProcedure

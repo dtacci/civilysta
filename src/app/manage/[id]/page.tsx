@@ -27,6 +27,7 @@ import {
   Check,
   QrCode,
   Webhook,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -124,6 +125,64 @@ export default function ManageCausePage() {
     a.download = `supporters-${cause?.slug ?? id}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleGeneratePetition = () => {
+    if (!cause || !supporterData?.supporters.length) return;
+    const sigRows = supporterData.supporters
+      .map(
+        (s, i) =>
+          `<tr>
+            <td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;text-align:center">${i + 1}</td>
+            <td style="padding:6px 12px;border-bottom:1px solid #e2e8f0">${s.name ?? "—"}</td>
+            <td style="padding:6px 12px;border-bottom:1px solid #e2e8f0">${new Date(s.createdAt).toLocaleDateString()}</td>
+          </tr>`,
+      )
+      .join("");
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`
+      <html>
+        <head>
+          <title>Petition: ${cause.title}</title>
+          <style>
+            @media print { body { margin: 0.75in; } }
+          </style>
+        </head>
+        <body style="font-family:Georgia,serif;max-width:700px;margin:40px auto;color:#1a1a1a;line-height:1.6">
+          <h1 style="font-size:28px;margin-bottom:4px">${cause.title}</h1>
+          <p style="color:#666;margin-top:0">Community Petition &mdash; ${new Date().toLocaleDateString()}</p>
+          <hr style="border:none;border-top:2px solid #1a1a1a;margin:24px 0" />
+
+          <p style="font-size:15px">${cause.description}</p>
+          ${cause.goal ? `<p style="font-size:15px"><strong>Goal:</strong> ${cause.goal}</p>` : ""}
+
+          <h2 style="font-size:20px;margin-top:32px;margin-bottom:12px">
+            Supporters (${supporterData.supporters.length})
+          </h2>
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+              <tr style="background:#f8f9fa">
+                <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #1a1a1a;width:40px">#</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #1a1a1a">Name</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #1a1a1a;width:120px">Date</th>
+              </tr>
+            </thead>
+            <tbody>${sigRows}</tbody>
+          </table>
+
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0" />
+          <p style="font-size:12px;color:#888;text-align:center">
+            Generated via Civilysta &mdash; ${causeUrl}
+          </p>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    win.onload = () => {
+      win.print();
+    };
   };
 
   if (isLoading) {
@@ -337,10 +396,16 @@ export default function ManageCausePage() {
                   Supporters ({cause._count.supporters})
                 </CardTitle>
                 {supporters.length > 0 && (
-                  <Button onClick={handleExportCSV} variant="outline" size="sm">
-                    <Download className="mr-1.5 h-3.5 w-3.5" />
-                    Export CSV
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={handleGeneratePetition} variant="outline" size="sm">
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Petition
+                    </Button>
+                    <Button onClick={handleExportCSV} variant="outline" size="sm">
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      CSV
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
               <CardContent>
