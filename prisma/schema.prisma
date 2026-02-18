@@ -160,11 +160,22 @@ enum LandingPageStatus {
   ARCHIVED
 }
 
+model SlugRedirect {
+  id      String @id @default(cuid())
+  oldSlug String @unique @map("old_slug")
+  newSlug String @map("new_slug")
+  causeId String @map("cause_id")
+
+  @@index([oldSlug])
+  @@map("slug_redirects")
+}
+
 model GenerationRequest {
   id        String   @id @default(cuid())
   ipHash    String   @map("ip_hash")
+  type      String   @default("generation") // "generation" | "support" | "comment"
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@index([ipHash, createdAt])
+  @@index([ipHash, type, createdAt])
   @@map("generation_requests")
 }

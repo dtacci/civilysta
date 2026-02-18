@@ -32,7 +32,7 @@ export const supporterRouter = createTRPCRouter({
       const oneHourAgo = new Date(Date.now() - RATE_WINDOW_MS);
 
       const recentRequests = await ctx.db.generationRequest.count({
-        where: { ipHash, createdAt: { gte: oneHourAgo } },
+        where: { ipHash, type: "support", createdAt: { gte: oneHourAgo } },
       });
 
       if (recentRequests >= SUPPORT_RATE_LIMIT) {
@@ -42,7 +42,12 @@ export const supporterRouter = createTRPCRouter({
         });
       }
 
-      await ctx.db.generationRequest.create({ data: { ipHash } });
+      await Promise.all([
+        ctx.db.generationRequest.create({ data: { ipHash, type: "support" } }),
+        ctx.db.generationRequest.deleteMany({
+          where: { type: "support", createdAt: { lt: oneHourAgo } },
+        }),
+      ]);
 
       // Check if already a supporter
       const existing = await ctx.db.supporter.findUnique({

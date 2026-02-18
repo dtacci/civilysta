@@ -57,7 +57,7 @@ export default function CreateCausePage() {
   const [otpPending, setOtpPending] = useState(false);
   const [otpError, setOtpError] = useState("");
 
-  // Restore draft from localStorage after magic link auth
+  // Restore draft from localStorage (after magic link auth or page revisit)
   useEffect(() => {
     const saved = localStorage.getItem("civilysta_draft");
     if (!saved) return;
@@ -65,17 +65,23 @@ export default function CreateCausePage() {
     const restoreDraft = async () => {
       try {
         const draft = JSON.parse(saved);
+        if (!draft.title || !draft.content) return;
+
         const supabase = createSupabaseBrowserClient();
         const { data: { user } } = await supabase.auth.getUser();
 
-        if (user && draft.title && draft.content) {
-          setTitle(draft.title);
-          setDescription(draft.description);
-          setContent(draft.content);
-          setImages(draft.images ?? []);
-          setSelectedImage(draft.selectedImageIndex ?? 0);
-          setPrimaryColor(draft.primaryColor ?? "#3b82f6");
-          setStep(3);
+        setTitle(draft.title);
+        setDescription(draft.description);
+        setContent(draft.content);
+        setImages(draft.images ?? []);
+        setSelectedImage(draft.selectedImageIndex ?? 0);
+        setPrimaryColor(draft.primaryColor ?? "#3b82f6");
+        // If authenticated (returning from magic link), go to publish step
+        // Otherwise go to review step so they can continue
+        setStep(user ? 3 : 2);
+
+        // Only clear draft if user is authenticated (about to publish)
+        if (user) {
           localStorage.removeItem("civilysta_draft");
         }
       } catch {
@@ -85,6 +91,25 @@ export default function CreateCausePage() {
 
     restoreDraft();
   }, []);
+
+  // Auto-save draft to localStorage when content exists (debounced)
+  useEffect(() => {
+    if (!content || step < 2) return;
+    const timer = setTimeout(() => {
+      localStorage.setItem(
+        "civilysta_draft",
+        JSON.stringify({
+          title,
+          description,
+          content,
+          images,
+          selectedImageIndex: selectedImage,
+          primaryColor,
+        }),
+      );
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [title, description, content, images, selectedImage, primaryColor, step]);
 
   const generatePreview = trpc.cause.generatePreview.useMutation({
     onSuccess: (data) => {
@@ -96,6 +121,7 @@ export default function CreateCausePage() {
 
   const createCause = trpc.cause.create.useMutation({
     onSuccess: (data) => {
+      localStorage.removeItem("civilysta_draft");
       router.push(`/create/success?slug=${data.slug}&title=${encodeURIComponent(title)}`);
     },
   });
@@ -319,10 +345,21 @@ export default function CreateCausePage() {
             {/* Image selection */}
             {images.length > 0 && (
               <div>
-                <h3 className="mb-3 text-lg font-medium">
-                  Choose a hero image
-                </h3>
-                <div className="grid grid-cols-3 gap-4">
+                {images.every((img) => img.url.startsWith("data:")) ? (
+                  <>
+                    <h3 className="mb-1 text-lg font-medium">
+                      Choose a placeholder color
+                    </h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      These are placeholder backgrounds. You can upload a real hero image later from your dashboard.
+                    </p>
+                  </>
+                ) : (
+                  <h3 className="mb-3 text-lg font-medium">
+                    Choose a hero image
+                  </h3>
+                )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {images.map((img, i) => (
                     <button
                       key={i}

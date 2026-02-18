@@ -512,7 +512,7 @@ export default function ManageCausePage() {
                   {slug && slug !== cause?.slug && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length >= 3
-                        ? "Looks good! Save to apply the new URL."
+                        ? "Old links will automatically redirect to the new URL."
                         : "Only lowercase letters, numbers, and hyphens (min 3 chars)"}
                     </p>
                   )}

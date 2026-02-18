@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "~/server/db";
 import { CausePageClient } from "./client";
@@ -23,6 +23,13 @@ export default async function CausePage({ params }: PageProps) {
   });
 
   if (!cause || cause.status !== "PUBLISHED") {
+    // Check for a slug redirect (old slug → new slug)
+    const slugRedirect = await db.slugRedirect.findUnique({
+      where: { oldSlug: slug },
+    });
+    if (slugRedirect) {
+      redirect(`/p/${slugRedirect.newSlug}`);
+    }
     notFound();
   }
 

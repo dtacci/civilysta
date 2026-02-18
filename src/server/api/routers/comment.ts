@@ -82,7 +82,7 @@ export const commentRouter = createTRPCRouter({
       const oneHourAgo = new Date(Date.now() - RATE_WINDOW_MS);
 
       const recentRequests = await ctx.db.generationRequest.count({
-        where: { ipHash, createdAt: { gte: oneHourAgo } },
+        where: { ipHash, type: "comment", createdAt: { gte: oneHourAgo } },
       });
 
       if (recentRequests >= COMMENT_RATE_LIMIT) {
@@ -92,7 +92,12 @@ export const commentRouter = createTRPCRouter({
         });
       }
 
-      await ctx.db.generationRequest.create({ data: { ipHash } });
+      await Promise.all([
+        ctx.db.generationRequest.create({ data: { ipHash, type: "comment" } }),
+        ctx.db.generationRequest.deleteMany({
+          where: { type: "comment", createdAt: { lt: oneHourAgo } },
+        }),
+      ]);
 
       let depth = 0;
       if (input.parentId) {

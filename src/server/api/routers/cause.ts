@@ -71,7 +71,7 @@ export const causeRouter = createTRPCRouter({
       const oneHourAgo = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
 
       const recentRequests = await ctx.db.generationRequest.count({
-        where: { ipHash, createdAt: { gte: oneHourAgo } },
+        where: { ipHash, type: "generation", createdAt: { gte: oneHourAgo } },
       });
 
       if (recentRequests >= RATE_LIMIT_MAX) {
@@ -82,9 +82,9 @@ export const causeRouter = createTRPCRouter({
         });
       }
 
-      // Log this request + clean up old records
+      // Log this request + clean up old records across all types
       await Promise.all([
-        ctx.db.generationRequest.create({ data: { ipHash } }),
+        ctx.db.generationRequest.create({ data: { ipHash, type: "generation" } }),
         ctx.db.generationRequest.deleteMany({
           where: { createdAt: { lt: oneHourAgo } },
         }),
@@ -246,7 +246,15 @@ export const causeRouter = createTRPCRouter({
           .enum(["DRAFT", "PUBLISHED", "PENDING_REVIEW", "ARCHIVED"])
           .optional(),
         updateMessage: z.string().max(500).optional().nullable(),
-        webhookUrl: z.string().url().max(500).optional().nullable(),
+        webhookUrl: z
+          .string()
+          .url()
+          .max(500)
+          .refine((url) => url.startsWith("https://"), {
+            message: "Webhook URL must use HTTPS",
+          })
+          .optional()
+          .nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -258,7 +266,7 @@ export const causeRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      // Validate slug uniqueness if changing
+      // Validate slug uniqueness if changing + create redirect from old slug
       if (input.slug && input.slug !== cause.slug) {
         const available = await isSlugAvailable(input.slug, input.id);
         if (!available) {
@@ -267,6 +275,14 @@ export const causeRouter = createTRPCRouter({
             message: "This URL is already taken. Try another.",
           });
         }
+        // Redirect old slug to new slug so existing links don't break
+        await ctx.db.slugRedirect.upsert({
+          where: { oldSlug: cause.slug },
+          update: { newSlug: input.slug },
+          create: { oldSlug: cause.slug, newSlug: input.slug, causeId: cause.id },
+        });
+        // Also revalidate the old slug path
+        revalidatePath(`/p/${cause.slug}`);
       }
 
       // Auto-blast supporters when updateMessage changes
