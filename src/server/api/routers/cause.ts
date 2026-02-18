@@ -184,6 +184,7 @@ export const causeRouter = createTRPCRouter({
         include: {
           _count: { select: { supporters: true, comments: true } },
           images: true,
+          landingPage: true,
         },
       });
 
@@ -266,6 +267,59 @@ export const causeRouter = createTRPCRouter({
       }
 
       await ctx.db.cause.delete({ where: { id: input.id } });
+      return { success: true };
+    }),
+
+  updateLandingPage: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        heroHeadline: z.string().min(1).max(200).optional(),
+        heroSubheadline: z.string().max(500).optional(),
+        heroImage: z.string().optional().nullable(),
+        heroBullets: z.array(z.string().max(200)).max(10).optional(),
+        ctaText: z.string().max(50).optional(),
+        primaryColor: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/)
+          .optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const cause = await ctx.db.cause.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!cause || cause.creatorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const landingPage = await ctx.db.landingPage.findUnique({
+        where: { causeId: input.id },
+      });
+
+      const current = (landingPage?.config ?? {}) as Record<string, unknown>;
+      const { id: _id, ...fields } = input;
+      const updated = {
+        ...current,
+        ...Object.fromEntries(
+          Object.entries(fields).filter(([, v]) => v !== undefined),
+        ),
+      } as Record<string, string | string[] | null>;
+
+      await ctx.db.landingPage.update({
+        where: { causeId: input.id },
+        data: { config: updated },
+      });
+
+      // Mirror imageUrl to Cause table if hero image changed
+      if ("heroImage" in fields) {
+        await ctx.db.cause.update({
+          where: { id: input.id },
+          data: { imageUrl: input.heroImage ?? null },
+        });
+      }
+
       return { success: true };
     }),
 });
