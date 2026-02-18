@@ -23,6 +23,15 @@ interface LandingPageRendererProps {
   causeSlug?: string;
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function LandingPageRenderer({
   config,
   supporterCount = 0,
@@ -37,8 +46,8 @@ export function LandingPageRenderer({
   const aboutBody =
     config.aboutBody ??
     (bullets.length > 0
-      ? `<p>${config.description ?? ""}</p><h3>What We're Asking For</h3><ul>${bullets.map((b) => `<li>${b}</li>`).join("")}</ul>`
-      : `<p>${config.description ?? ""}</p>`);
+      ? `<p>${escapeHtml(config.description ?? "")}</p><h3>What We&#039;re Asking For</h3><ul>${bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`
+      : `<p>${escapeHtml(config.description ?? "")}</p>`);
 
   return (
     <div className="min-h-screen bg-background text-foreground" style={customStyles}>

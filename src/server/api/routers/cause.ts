@@ -165,16 +165,38 @@ export const causeRouter = createTRPCRouter({
       return { slug: cause.slug, id: cause.id };
     }),
 
-  listMine: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.cause.findMany({
-      where: { creatorId: ctx.user.id },
-      include: {
-        _count: { select: { supporters: true, comments: true } },
-        images: { where: { isSelected: true }, take: 1 },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-  }),
+  listMine: protectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(50).default(20),
+          cursor: z.string().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 20;
+      const causes = await ctx.db.cause.findMany({
+        where: { creatorId: ctx.user.id },
+        take: limit + 1,
+        ...(input?.cursor
+          ? { cursor: { id: input.cursor }, skip: 1 }
+          : {}),
+        include: {
+          _count: { select: { supporters: true, comments: true } },
+          images: { where: { isSelected: true }, take: 1 },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      let nextCursor: string | undefined;
+      if (causes.length > limit) {
+        const nextItem = causes.pop();
+        nextCursor = nextItem?.id;
+      }
+
+      return { causes, nextCursor };
+    }),
 
   update: protectedProcedure
     .input(

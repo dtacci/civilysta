@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { LandingPageRenderer } from "~/components/landing/LandingPageRenderer";
 import { CommentSection } from "~/components/comments/CommentSection";
 import { SupporterForm } from "~/components/supporter/SupporterForm";
@@ -27,6 +28,20 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
 
   return (
     <div>
+      <header className="border-b bg-background">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          <Link href="/" className="text-lg font-bold text-primary">
+            Civilysta
+          </Link>
+          <Link
+            href="/create"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Create Your Own Cause
+          </Link>
+        </div>
+      </header>
+
       <LandingPageRenderer
         config={landingConfig}
         supporterCount={supporterCount}

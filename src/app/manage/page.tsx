@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 
 export default function ManagePage() {
-  const { data: causes, isLoading } = trpc.cause.listMine.useQuery();
+  const { data, isLoading } = trpc.cause.listMine.useQuery({});
+  const causes = data?.causes;
 
   return (
     <div className="min-h-screen bg-background">

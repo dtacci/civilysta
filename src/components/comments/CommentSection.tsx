@@ -19,10 +19,11 @@ export function CommentSection({ causeId }: CommentSectionProps) {
 
   const utils = trpc.useUtils();
 
-  const { data: comments, isLoading } = trpc.comment.getByCause.useQuery({
+  const { data, isLoading } = trpc.comment.getByCause.useQuery({
     causeId,
     sortBy,
   });
+  const comments = data?.comments;
 
   const createComment = trpc.comment.create.useMutation({
     onSuccess: () => {

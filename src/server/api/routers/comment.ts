@@ -1,4 +1,5 @@
 import { z } from "zod";
+import crypto from "crypto";
 import {
   createTRPCRouter,
   publicProcedure,
@@ -6,12 +7,17 @@ import {
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
+const COMMENT_RATE_LIMIT = 10; // per hour per IP
+const RATE_WINDOW_MS = 60 * 60 * 1000;
+
 export const commentRouter = createTRPCRouter({
   getByCause: publicProcedure
     .input(
       z.object({
         causeId: z.string(),
         sortBy: z.enum(["newest", "oldest", "top"]).default("top"),
+        cursor: z.string().optional(),
+        limit: z.number().min(1).max(50).default(20),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -24,11 +30,14 @@ export const commentRouter = createTRPCRouter({
 
       const comments = await ctx.db.comment.findMany({
         where: { causeId: input.causeId, parentId: null },
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {
           author: {
             select: { id: true, name: true, avatarUrl: true },
           },
           replies: {
+            take: 10,
             include: {
               author: {
                 select: { id: true, name: true, avatarUrl: true },
@@ -46,7 +55,13 @@ export const commentRouter = createTRPCRouter({
         orderBy,
       });
 
-      return comments;
+      let nextCursor: string | undefined;
+      if (comments.length > input.limit) {
+        const nextItem = comments.pop();
+        nextCursor = nextItem?.id;
+      }
+
+      return { comments, nextCursor };
     }),
 
   create: protectedProcedure
@@ -58,6 +73,27 @@ export const commentRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Rate limiting by IP
+      const ip =
+        ctx.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        ctx.headers.get("x-real-ip") ??
+        "unknown";
+      const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
+      const oneHourAgo = new Date(Date.now() - RATE_WINDOW_MS);
+
+      const recentRequests = await ctx.db.generationRequest.count({
+        where: { ipHash, createdAt: { gte: oneHourAgo } },
+      });
+
+      if (recentRequests >= COMMENT_RATE_LIMIT) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "Too many comments. Please try again later.",
+        });
+      }
+
+      await ctx.db.generationRequest.create({ data: { ipHash } });
+
       let depth = 0;
       if (input.parentId) {
         const parent = await ctx.db.comment.findUnique({

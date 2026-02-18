@@ -20,7 +20,7 @@ export default async function CausePage({ params }: PageProps) {
     },
   });
 
-  if (!cause || cause.status === "ARCHIVED") {
+  if (!cause || cause.status !== "PUBLISHED") {
     notFound();
   }
 
