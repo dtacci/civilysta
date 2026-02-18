@@ -22,6 +22,7 @@ function SuccessContent() {
   const router = useRouter();
   const slug = searchParams.get("slug");
   const title = searchParams.get("title") ?? "My Cause";
+  const isPending = searchParams.get("pending") === "1";
 
   const [copied, setCopied] = useState(false);
 
@@ -47,10 +48,21 @@ function SuccessContent() {
       {/* Success message */}
       <div className="mb-10 text-center">
         <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-primary" />
-        <h1 className="mb-2 text-3xl font-bold">Your cause is live!</h1>
-        <p className="text-muted-foreground">
-          Share this link to rally support
-        </p>
+        {isPending ? (
+          <>
+            <h1 className="mb-2 text-3xl font-bold">Your cause is submitted!</h1>
+            <p className="text-muted-foreground">
+              It&apos;s under review and will be live soon. You&apos;ll get your shareable link once approved.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="mb-2 text-3xl font-bold">Your cause is live!</h1>
+            <p className="text-muted-foreground">
+              Share this link to rally support
+            </p>
+          </>
+        )}
       </div>
 
       {/* URL + copy */}

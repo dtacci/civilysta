@@ -10,6 +10,23 @@ import { ShareSection } from "~/components/share/ShareSection";
 import { EventSection } from "~/components/landing/sections/EventSection";
 import { Users, MapPin } from "lucide-react";
 
+interface LandingEvent {
+  title?: string;
+  date: string;
+  time?: string;
+  recurrence: "none" | "weekly" | "biweekly" | "monthly";
+  endDate?: string;
+}
+
+function isLandingEvent(v: unknown): v is LandingEvent {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "date" in v &&
+    typeof (v as Record<string, unknown>).date === "string"
+  );
+}
+
 interface CausePageClientProps {
   cause: {
     id: string;
@@ -60,7 +77,7 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
 
       {/* Location section */}
       {(() => {
-        const loc = landingConfig.location as string | undefined;
+        const loc = typeof landingConfig.location === "string" ? landingConfig.location : undefined;
         if (!loc) return null;
         return (
           <section className="border-t px-4 py-8">
@@ -77,10 +94,18 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
                   height="100%"
                   style={{ border: 0 }}
                   loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
+                  referrerPolicy="no-referrer"
                   title="Location map"
                 />
               </div>
+              <a
+                href={`https://maps.google.com/maps?q=${encodeURIComponent(loc)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Open in Google Maps
+              </a>
             </div>
           </section>
         );
@@ -88,15 +113,7 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
 
       {/* Event section */}
       {(() => {
-        const ev = landingConfig.event as
-          | {
-              title?: string;
-              date: string;
-              time?: string;
-              recurrence: "none" | "weekly" | "biweekly" | "monthly";
-              endDate?: string;
-            }
-          | undefined;
+        const ev = isLandingEvent(landingConfig.event) ? landingConfig.event : undefined;
         if (!ev?.date) return null;
         return (
           <EventSection
@@ -104,7 +121,7 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
             causeTitle={cause.title}
             causeDescription={cause.description}
             causeSlug={cause.slug}
-            location={(landingConfig.location as string) ?? undefined}
+            location={typeof landingConfig.location === "string" ? landingConfig.location : undefined}
           />
         );
       })()}
@@ -133,10 +150,7 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
       {/* Comments section */}
       <section className="border-t px-4 py-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="mb-8 text-2xl font-bold">
-            Discussion ({cause.commentCount})
-          </h2>
-          <CommentSection causeId={cause.id} />
+          <CommentSectionWithCount causeId={cause.id} initialCount={cause.commentCount} />
         </div>
       </section>
 
@@ -156,6 +170,26 @@ export function CausePageClient({ cause, landingConfig }: CausePageClientProps) 
         </Link>
       </footer>
     </div>
+  );
+}
+
+function CommentSectionWithCount({
+  causeId,
+  initialCount,
+}: {
+  causeId: string;
+  initialCount: number;
+}) {
+  const { data } = trpc.comment.getByCause.useQuery({ causeId, sortBy: "top" });
+  const count = data?.comments?.length ?? initialCount;
+
+  return (
+    <>
+      <h2 className="mb-8 text-2xl font-bold">
+        Discussion ({count})
+      </h2>
+      <CommentSection causeId={causeId} />
+    </>
   );
 }
 

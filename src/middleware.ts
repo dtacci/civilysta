@@ -26,19 +26,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session
-  await supabase.auth.getUser();
+  // Refresh session (single call, reused for /manage auth check)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Protect /manage routes
-  if (request.nextUrl.pathname.startsWith("/manage")) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      const redirectUrl = new URL("/create", request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
+  if (request.nextUrl.pathname.startsWith("/manage") && !user) {
+    const redirectUrl = new URL("/create", request.url);
+    return NextResponse.redirect(redirectUrl);
   }
 
   return response;

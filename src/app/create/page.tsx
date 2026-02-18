@@ -122,7 +122,12 @@ export default function CreateCausePage() {
   const createCause = trpc.cause.create.useMutation({
     onSuccess: (data) => {
       localStorage.removeItem("civilysta_draft");
-      router.push(`/create/success?slug=${data.slug}&title=${encodeURIComponent(title)}`);
+      const params = new URLSearchParams({
+        slug: data.slug,
+        title,
+        ...(data.status === "PENDING_REVIEW" ? { pending: "1" } : {}),
+      });
+      router.push(`/create/success?${params.toString()}`);
     },
   });
 

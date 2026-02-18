@@ -179,7 +179,7 @@ export const causeRouter = createTRPCRouter({
         });
       }
 
-      return { slug: cause.slug, id: cause.id };
+      return { slug: cause.slug, id: cause.id, status: causeStatus };
     }),
 
   getById: protectedProcedure

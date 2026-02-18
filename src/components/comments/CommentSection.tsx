@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "~/server/api/root";
 import { trpc } from "~/lib/trpc/client";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import { ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 import { cn } from "~/lib/utils";
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type CommentWithReplies = RouterOutputs["comment"]["getByCause"]["comments"][number];
+type CommentReply = CommentWithReplies["replies"][number];
 
 interface CommentSectionProps {
   causeId: string;
@@ -109,7 +115,7 @@ export function CommentSection({ causeId }: CommentSectionProps) {
         </div>
       ) : comments && comments.length > 0 ? (
         <div className="space-y-4">
-          {comments.map((comment: any) => (
+          {comments.map((comment) => (
             <CommentCard
               key={comment.id}
               comment={comment}
@@ -135,7 +141,7 @@ export function CommentSection({ causeId }: CommentSectionProps) {
 }
 
 interface CommentCardProps {
-  comment: any;
+  comment: CommentWithReplies | CommentReply;
   onVote: (commentId: string, voteType: "UP" | "DOWN") => void;
   onReply: (commentId: string) => void;
   replyingTo: string | null;
@@ -244,7 +250,7 @@ function CommentCard({
       )}
 
       {/* Nested replies */}
-      {comment.replies?.map((reply: any) => (
+      {"replies" in comment && comment.replies?.map((reply) => (
         <CommentCard
           key={reply.id}
           comment={reply}

@@ -21,12 +21,38 @@ export function SupporterForm({
   const [name, setName] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  const [alreadySupported, setAlreadySupported] = useState(false);
+
   const support = trpc.supporter.support.useMutation({
     onSuccess: () => {
       setSubmitted(true);
       onSupported?.();
     },
+    onError: (err) => {
+      if (err.data?.code === "CONFLICT") {
+        setAlreadySupported(true);
+      }
+    },
   });
+
+  if (alreadySupported) {
+    return (
+      <div className="rounded-lg border bg-primary/5 p-8 text-center">
+        <Check className="mx-auto mb-4 h-12 w-12 text-primary" />
+        <h3 className="mb-2 text-xl font-bold">You already support this cause!</h3>
+        <p className="mb-4 text-muted-foreground">
+          Thank you for standing with &ldquo;{causeTitle}&rdquo;.
+        </p>
+        <a
+          href="#share"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Share2 className="h-4 w-4" />
+          Help spread the word
+        </a>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

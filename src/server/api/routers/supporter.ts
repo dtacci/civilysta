@@ -196,6 +196,25 @@ export const supporterRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
+      // Rate limit: max 1 blast per cause per hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const recentBlast = await ctx.db.generationRequest.count({
+        where: {
+          ipHash: `blast:${input.causeId}`,
+          type: "blast",
+          createdAt: { gte: oneHourAgo },
+        },
+      });
+      if (recentBlast > 0) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "You can only send one email blast per hour. Please wait before sending another.",
+        });
+      }
+      await ctx.db.generationRequest.create({
+        data: { ipHash: `blast:${input.causeId}`, type: "blast" },
+      });
+
       const supporters = await ctx.db.supporter.findMany({
         where: { causeId: input.causeId, unsubscribed: false },
         select: { email: true, unsubscribeToken: true },

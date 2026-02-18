@@ -246,6 +246,12 @@ export default function ManageCausePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+
     setIsUploading(true);
     try {
       const supabase = createSupabaseBrowserClient();
@@ -406,7 +412,7 @@ export default function ManageCausePage() {
 
       <main className="mx-auto max-w-5xl px-4 py-6">
         {/* Stats bar */}
-        <div className="mb-6 flex items-center gap-6">
+        <div className="mb-6 flex flex-wrap items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="h-4 w-4" />
             <span className="font-medium text-foreground">
@@ -435,7 +441,7 @@ export default function ManageCausePage() {
         </div>
 
         {/* Tab navigation */}
-        <div className="mb-6 flex gap-1 overflow-x-auto border-b">
+        <div className="scrollbar-hide mb-6 flex gap-1 overflow-x-auto border-b pb-px">
           {(
             [
               ["content", "Content"],
