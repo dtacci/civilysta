@@ -6,6 +6,8 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { sendSupporterNotification } from "~/lib/email";
+import { fireWebhook } from "~/lib/webhook";
 
 const SUPPORT_RATE_LIMIT = 10; // per hour per IP
 const RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -72,6 +74,46 @@ export const supporterRouter = createTRPCRouter({
           data: { supporterCount: { increment: 1 } },
         }),
       ]);
+
+      // Fire-and-forget: email notification + webhook
+      const cause = await ctx.db.cause.findUnique({
+        where: { id: input.causeId },
+        include: { creator: { select: { email: true } } },
+      });
+
+      if (cause) {
+        const siteUrl =
+          process.env.NEXT_PUBLIC_APP_URL ?? "https://civilysta.com";
+        const causeUrl = `${siteUrl}/p/${cause.slug}`;
+
+        if (cause.creator?.email && process.env.RESEND_API_KEY) {
+          void sendSupporterNotification({
+            toEmail: cause.creator.email,
+            causeTitle: cause.title,
+            causeUrl,
+            supporterName: input.name,
+            supporterEmail: input.email,
+          }).catch((err) =>
+            console.error("Notification email failed:", err),
+          );
+        }
+
+        if (cause.webhookUrl) {
+          void fireWebhook(cause.webhookUrl, {
+            event: "new_supporter",
+            causeId: input.causeId,
+            causeTitle: cause.title,
+            causeUrl,
+            supporter: {
+              name: input.name ?? null,
+              email: input.email,
+              createdAt: new Date().toISOString(),
+            },
+          }).catch((err) =>
+            console.error("Webhook delivery failed:", err),
+          );
+        }
+      }
 
       return { id: supporter.id };
     }),

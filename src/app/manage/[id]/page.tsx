@@ -26,6 +26,7 @@ import {
   Copy,
   Check,
   QrCode,
+  Webhook,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,6 +47,7 @@ export default function ManageCausePage() {
   const [goal, setGoal] = useState("");
   const [updateMessage, setUpdateMessage] = useState("");
   const [status, setStatus] = useState<string>("PUBLISHED");
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -55,6 +57,7 @@ export default function ManageCausePage() {
       setDescription(cause.description);
       setGoal(cause.goal ?? "");
       setUpdateMessage(cause.updateMessage ?? "");
+      setWebhookUrl(cause.webhookUrl ?? "");
       setStatus(cause.status);
     }
   }, [cause]);
@@ -66,9 +69,10 @@ export default function ManageCausePage() {
       description !== cause.description ||
       (goal || "") !== (cause.goal ?? "") ||
       (updateMessage || "") !== (cause.updateMessage ?? "") ||
+      (webhookUrl || "") !== (cause.webhookUrl ?? "") ||
       status !== cause.status;
     setHasChanges(changed);
-  }, [title, description, goal, updateMessage, status, cause]);
+  }, [title, description, goal, updateMessage, webhookUrl, status, cause]);
 
   const updateCause = trpc.cause.update.useMutation({
     onSuccess: () => {
@@ -88,6 +92,7 @@ export default function ManageCausePage() {
       description,
       goal: goal || undefined,
       updateMessage: updateMessage || null,
+      webhookUrl: webhookUrl || null,
       status: status as "DRAFT" | "PUBLISHED" | "PENDING_REVIEW" | "ARCHIVED",
     });
   };
@@ -406,6 +411,27 @@ export default function ManageCausePage() {
                   </Button>
                 </div>
                 <QRCodeGenerator text={causeUrl} size={200} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Webhook className="h-4 w-4" />
+                  Webhook
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Input
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://hooks.zapier.com/..."
+                  className="font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  We&apos;ll POST JSON here whenever someone supports your
+                  cause. Works with Zapier, Make, n8n, and more.
+                </p>
               </CardContent>
             </Card>
           </div>

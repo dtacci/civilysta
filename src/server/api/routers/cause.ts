@@ -238,6 +238,7 @@ export const causeRouter = createTRPCRouter({
           .enum(["DRAFT", "PUBLISHED", "PENDING_REVIEW", "ARCHIVED"])
           .optional(),
         updateMessage: z.string().max(500).optional().nullable(),
+        webhookUrl: z.string().url().max(500).optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {

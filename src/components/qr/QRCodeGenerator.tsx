@@ -64,6 +64,23 @@ export function QRCodeGenerator({
     link.click();
   };
 
+  const printQR = () => {
+    if (!qrDataUrl) return;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`
+      <html>
+        <head><title>QR Code — ${text}</title></head>
+        <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:system-ui,sans-serif">
+          <img src="${qrDataUrl}" style="width:${size * 2}px;height:${size * 2}px" />
+          <p style="margin-top:24px;font-size:14px;color:#666;max-width:400px;text-align:center;word-break:break-all">${text}</p>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    win.onload = () => { win.print(); };
+  };
+
   const downloadSVG = async () => {
     if (!text.trim()) return;
     try {
@@ -126,6 +143,12 @@ export function QRCodeGenerator({
             className="rounded bg-secondary px-3 py-1 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           >
             Download SVG
+          </button>
+          <button
+            onClick={printQR}
+            className="rounded bg-secondary px-3 py-1 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          >
+            Print
           </button>
         </div>
       )}

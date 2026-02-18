@@ -34,6 +34,7 @@ model Cause {
   status         CauseStatus @default(DRAFT)
   supporterCount Int         @default(0) @map("supporter_count")
   updateMessage  String?     @map("update_message")
+  webhookUrl     String?     @map("webhook_url")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
