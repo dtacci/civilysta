@@ -1,5 +1,6 @@
 import { z } from "zod";
 import crypto from "crypto";
+import { revalidatePath } from "next/cache";
 import {
   createTRPCRouter,
   publicProcedure,
@@ -295,7 +296,12 @@ export const causeRouter = createTRPCRouter({
       }
 
       const { id, ...data } = input;
-      return ctx.db.cause.update({ where: { id }, data });
+      const updated = await ctx.db.cause.update({ where: { id }, data });
+
+      // Bust ISR cache for the public cause page
+      revalidatePath(`/p/${updated.slug}`);
+
+      return updated;
     }),
 
   delete: protectedProcedure
@@ -373,6 +379,9 @@ export const causeRouter = createTRPCRouter({
           data: { imageUrl: input.heroImage ?? null },
         });
       }
+
+      // Bust ISR cache for the public cause page
+      revalidatePath(`/p/${cause.slug}`);
 
       return { success: true };
     }),

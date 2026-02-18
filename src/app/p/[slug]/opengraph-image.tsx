@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { db } from "~/server/db";
 
 export const runtime = "nodejs";
+export const revalidate = 300; // ISR: same cadence as the cause page
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

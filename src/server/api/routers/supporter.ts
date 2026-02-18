@@ -1,5 +1,6 @@
 import { z } from "zod";
 import crypto from "crypto";
+import { revalidatePath } from "next/cache";
 import {
   createTRPCRouter,
   publicProcedure,
@@ -113,6 +114,9 @@ export const supporterRouter = createTRPCRouter({
             console.error("Webhook delivery failed:", err),
           );
         }
+
+        // Bust ISR cache so supporter count updates on the page + OG image
+        revalidatePath(`/p/${cause.slug}`);
       }
 
       return { id: supporter.id };

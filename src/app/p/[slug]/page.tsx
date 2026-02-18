@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { db } from "~/server/db";
 import { CausePageClient } from "./client";
 
+export const revalidate = 300; // ISR: regenerate at most every 5 minutes
+
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
