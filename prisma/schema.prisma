@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String?
+  supabaseId String    @unique @map("supabase_id")
+  avatarUrl  String?   @map("avatar_url")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  causes       Cause[]
+  comments     Comment[]
+  commentVotes CommentVote[]
+
+  @@map("users")
+}
+
+model Cause {
+  id             String      @id @default(cuid())
+  slug           String      @unique
+  title          String
+  description    String
+  goal           String?
+  imageUrl       String?     @map("image_url")
+  status         CauseStatus @default(DRAFT)
+  supporterCount Int         @default(0) @map("supporter_count")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  creatorId String @map("creator_id")
+  creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  images      CauseImage[]
+  supporters  Supporter[]
+  comments    Comment[]
+  landingPage LandingPage?
+
+  @@index([creatorId])
+  @@index([status])
+  @@map("causes")
+}
+
+enum CauseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model CauseImage {
+  id            String   @id @default(cuid())
+  url           String
+  isAiGenerated Boolean  @default(false) @map("is_ai_generated")
+  prompt        String?
+  isSelected    Boolean  @default(false) @map("is_selected")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  causeId String @map("cause_id")
+  cause   Cause  @relation(fields: [causeId], references: [id], onDelete: Cascade)
+
+  @@index([causeId])
+  @@map("cause_images")
+}
+
+model Supporter {
+  id        String   @id @default(cuid())
+  email     String
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  causeId String @map("cause_id")
+  cause   Cause  @relation(fields: [causeId], references: [id], onDelete: Cascade)
+
+  @@unique([causeId, email])
+  @@index([causeId])
+  @@map("supporters")
+}
+
+model Comment {
+  id           String   @id @default(cuid())
+  content      String
+  parentId     String?  @map("parent_id")
+  depth        Int      @default(0)
+  upvoteCount  Int      @default(0) @map("upvote_count")
+  downvoteCount Int     @default(0) @map("downvote_count")
+  score        Int      @default(0)
+  isPinned     Boolean  @default(false) @map("is_pinned")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  causeId  String @map("cause_id")
+  cause    Cause  @relation(fields: [causeId], references: [id], onDelete: Cascade)
+
+  authorId String @map("author_id")
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+  votes    CommentVote[]
+
+  @@index([causeId])
+  @@index([authorId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model CommentVote {
+  id       String   @id @default(cuid())
+  voteType VoteType @map("vote_type")
+
+  commentId String @map("comment_id")
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@map("comment_votes")
+}
+
+enum VoteType {
+  UP
+  DOWN
+}
+
+model LandingPage {
+  id          String            @id @default(cuid())
+  config      Json              @default("{}")
+  status      LandingPageStatus @default(DRAFT)
+  publishedAt DateTime?         @map("published_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  causeId String @unique @map("cause_id")
+  cause   Cause  @relation(fields: [causeId], references: [id], onDelete: Cascade)
+
+  @@map("landing_pages")
+}
+
+enum LandingPageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
